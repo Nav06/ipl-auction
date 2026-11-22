@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>IPL 2027 Mock Auction</title>
+<!-- Standalone build: Firebase Firestore + anonymous auth. Host = whoever sets the master PIN first. -->
+<style>
+:root{--bg:#f4f6fb;--cd:#fff;--tx:#141a2a;--mu:#5d6781;--ln:#dde2ee;--ac:#e8890c;--ok:#1a9e55;--bad:#d93636;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1320;--cd:#182036;--tx:#eef1f8;--mu:#93a0bd;--ln:#27324d;--ac:#ffb300;--ok:#34d27b;--bad:#ff6464;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e1320;--cd:#182036;--tx:#eef1f8;--mu:#93a0bd;--ln:#27324d;--ac:#ffb300;--ok:#34d27b;--bad:#ff6464;color-scheme:dark}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;max-width:520px;margin:auto;padding:10px}
+.c{background:var(--cd);border:1px solid var(--ln);border-radius:14px;padding:12px;margin-bottom:10px}
+h1{font-size:18px;margin:4px 0 8px}h3{margin:0 0 6px;font-size:14px;color:var(--mu);text-transform:uppercase;letter-spacing:.05em}
+.mu{color:var(--mu);font-size:13px}.big{font-size:26px;font-weight:800}.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+#clk{font-size:34px;font-weight:800;font-variant-numeric:tabular-nums}#clk.low{color:var(--bad)}
+button{font:inherit;border:0;border-radius:10px;padding:10px 12px;background:var(--ln);color:var(--tx);font-weight:600}
+button.p{background:var(--ac);color:#111;width:100%;font-size:18px;padding:14px;margin-top:8px}button:disabled{opacity:.45}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.chip{border-left:6px solid var(--k);padding:8px 10px}
+.t{border-left:6px solid var(--k);padding:6px 8px;margin:6px 0;background:var(--bg);border-radius:8px}
+.sold{font-size:28px;font-weight:900;color:var(--ok);animation:pop .5s}@keyframes pop{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
+details summary{cursor:pointer}input,select{font:inherit;padding:8px;border-radius:8px;border:1px solid var(--ln);background:var(--bg);color:var(--tx);width:100%;margin:3px 0}
+.lg{font-size:13px;padding:3px 0;border-bottom:1px solid var(--ln)}.un{text-decoration:line-through;opacity:.5}
+</style></head><body>
+<h1>🏏 IPL 2027 Mock Auction</h1>
+<div id="nt" class="c" hidden style="position:sticky;top:6px;z-index:5;border-color:var(--ac)"></div>
+<div id="msg" class="c mu">Connecting…</div>
+<div id="app" hidden>
+<div id="top" class="c"></div>
+<div id="adm" class="c" hidden></div>
+<div class="c"><h3>Teams · purse · slots</h3><div id="teams"></div></div>
+<div class="c"><h3>Player pool</h3><div id="pool"></div></div>
+<div id="mst" class="c"><h3>🔑 Master mode</h3><div id="mst1"><input id="pn" type="password" inputmode="numeric" placeholder="Master PIN"><button id="pu">Unlock</button></div><div id="mst2" hidden><div class="mu">Master controls unlocked</div><input id="np" type="password" inputmode="numeric" placeholder="New PIN (4–8 digits)"><button id="ps">Set / change PIN</button></div><div id="mm" class="mu"></div></div>
+<div class="c"><h3>Live log</h3><div id="log"></div></div>
+</div>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+/* ===== Firebase config (filled in) ===== */
+const FIREBASE_CONFIG={apiKey:"AIzaSyBrBl7sXmHb1cPmlzXPeirvpXl4zwizcsI",authDomain:"badlionzzz-2027-auction.firebaseapp.com",projectId:"badlionzzz-2027-auction",storageBucket:"badlionzzz-2027-auction.firebasestorage.app",messagingSenderId:"1057928367411",appId:"1:1057928367411:web:049d0316bb755d2fd44246"};
+/* =================================================== */
+if(!window.claude){let fsP;
+ const boot=async()=>{
+  if(FIREBASE_CONFIG.apiKey.startsWith("PASTE"))throw new Error("paste your Firebase config at the top of this file");
+  if(!window.firebase)throw new Error("could not load Firebase, check your connection");
+  firebase.initializeApp(FIREBASE_CONFIG);const fs=firebase.firestore();fs.settings({ignoreUndefinedProperties:true});
+  await firebase.auth().signInAnonymously();return{fs,uid:firebase.auth().currentUser.uid}};
+ const ctx=()=>fsP||(fsP=boot());
+ window.claude={use:async n=>{const{fs,uid}=await ctx();
+  if(n==="user")return{id:async()=>uid,isOwner:async()=>false};
+  const R=p=>fs.doc(p);
+  return{doc:p=>({onSnapshot:f=>R(p).onSnapshot(f,e=>console.error(p,e)),get:()=>R(p).get(),set:d=>R(p).set(d),update:d=>R(p).update(d),delete:()=>R(p).delete(),
+   acquire:({holder,ttlMs})=>fs.runTransaction(async t=>{const s=await t.get(R(p)),l=s.exists?s.data():null,now=Date.now();if(l&&l.holder!==holder&&l.exp>now)return{acquired:false};t.set(R(p),{holder,exp:now+ttlMs});return{acquired:true}})}),
+   collection:c=>({onSnapshot:f=>fs.collection(c).onSnapshot(f,e=>console.error(c,e)),add:d=>fs.collection(c).add(d)})}}}}
+</script>
+<script>
+const CLK=60, BRK=6000, MINB=30;
+const TEAMS=[
+["CSK","Chennai Super Kings","#f9cd05",2805,6,2,"Ruturaj Gaikwad,Sanju Samson,Shivam Dube,Ayush Mhatre,Dewald Brevis,Urvil Patel,Kartik Sharma,Sarfaraz Khan,Noor Ahmad,Rahul Chahar,Anshul Kamboj,Gurjapneet Singh,Mukesh Choudhary,Shreyas Gopal,Ramakrishna Ghosh,Akeal Hosein,Jamie Overton,Liam Livingstone,Jack Edwards"],
+["DC","Delhi Capitals","#1c5bd9",3950,9,4,"Axar Patel,KL Rahul,Rishabh Pant,Prithvi Shaw,Sameer Rizvi,Ashutosh Sharma,Tristan Stubbs,David Miller,Lungi Ngidi,Mukesh Kumar,Auqib Nabi,Vipraj Nigam,Madhav Tiwari,Tripurana Vijay,Kyle Jamieson,Zeeshan Ansari"],
+["GT","Gujarat Titans","#3a5fb0",875,3,2,"Shubman Gill,Sai Sudharsan,Jos Buttler,Glenn Phillips,Tom Banton,Kumar Kushagra,Anuj Rawat,Rahul Tewatia,Washington Sundar,Rashid Khan,R Sai Kishore,Manav Suthar,Jayant Yadav,Jason Holder,Kagiso Rabada,Mohammed Siraj,Prasidh Krishna,Gurnoor Brar,Ashok Sharma,Arshad Khan,Nishant Sindhu,Harshal Patel"],
+["KKR","Kolkata Knight Riders","#6b2fa0",4165,8,3,"Cameron Green,Sunil Narine,Rinku Singh,Varun Chakravarthy,Harshit Rana,Finn Allen,Manish Pandey,Rovman Powell,Angkrish Raghuvanshi,Ramandeep Singh,Tim Seifert,Sarthak Ranjan,Anukul Roy,Vaibhav Arora,Saurabh Dubey,Kartik Tyagi,Prashant Solanki"],
+["LSG","Lucknow Super Giants","#00a8a0",4745,7,3,"Nicholas Pooran,Mitchell Marsh,Aiden Markram,Josh Inglis,Ayush Badoni,Abdul Samad,Mukul Choudhary,Akshat Raghuwanshi,Himmat Singh,Shahbaz Ahmed,Digvesh Rathi,Prince Yadav,Mohsin Khan,Mayank Yadav,Akash Singh,Arjun Tendulkar,Kuldeep Yadav,Sam Curran"],
+["MI","Mumbai Indians","#0a64c8",3260,9,2,"Rohit Sharma,Suryakumar Yadav,Jasprit Bumrah,Tilak Varma,Arshdeep Singh,Naman Dhir,Ryan Rickelton,Sherfane Rutherford,Quinton de Kock,Corbin Bosch,Will Jacks,Shardul Thakur,Raj Angad Bawa,Mitchell Santner,Ashwani Kumar,Raghu Sharma"],
+["PBKS","Punjab Kings","#ef4444",1860,6,2,"Shreyas Iyer,Hardik Pandya,Priyansh Arya,Prabhsimran Singh,Shashank Singh,Musheer Khan,Vishnu Vinod,Cooper Connolly,Marcus Stoinis,Azmatullah Omarzai,Marco Jansen,Suryansh Shedge,Xavier Bartlett,Ben Dwarshuis,Yash Thakur,Vijaykumar Vyshak,Yuzvendra Chahal,Harpreet Brar,Harnoor Singh"],
+["RR","Rajasthan Royals","#e91e8c",2705,6,3,"Riyan Parag,Yashasvi Jaiswal,Vaibhav Sooryavanshi,Dhruv Jurel,Ravindra Jadeja,Jofra Archer,Mohammed Shami,Manimaran Siddharth,Shubham Dubey,Aman Rao Perala,Lhuan-dre Pretorius,Donovan Ferreira,Dasun Shanaka,Ravi Bishnoi,Yash Punja,Brijesh Sharma,Sandeep Sharma,Sushant Mishra,Nandre Burger"],
+["RCB","Royal Challengers Bengaluru","#b3121b",1415,5,1,"Virat Kohli,Rajat Patidar,Phil Salt,Devdutt Padikkal,Jitesh Sharma,Tim David,Krunal Pandya,Romario Shepherd,Josh Hazlewood,Bhuvneshwar Kumar,Suyash Sharma,Abhinandan Singh,Rasikh Dar,Venkatesh Iyer,Jacob Duffy,Jordan Cox,Vicky Ostwal,Kanishk Chouhan,Yash Dayal,Nuwan Thushara"],
+["SRH","Sunrisers Hyderabad","#ff822a",4015,7,3,"Pat Cummins,Abhishek Sharma,Ishan Kishan,Heinrich Klaasen,Nitish Kumar Reddy,T Natarajan,Khaleel Ahmed,Nathan Ellis,Salil Arora,Eshan Malinga,Brydon Carse,Ravichandran Smaran,Aniket Verma,Harsh Dubey,Shivang Kumar,Krains Fuletra,Praful Hinge,Sakib Hussain"]];
+// Name|O(verseas)/I|Role B,K(wk),A,P|Tier S=2cr M=1cr U=0.3cr (roles & base prices are estimates)
+const POOL=`Daniel Lawrence|ENG|B|200|U26
+Jake Fraser-McGurk|AUS|B|200|U26
+Shimron Hetmyer|WI|B|200|RR
+Steve Smith|AUS|B|200|U26
+Daryl Mitchell|NZ|A|200|U26
+Jacob Bethell|ENG|A|200|RCB
+Liam Dawson|ENG|A|200|U26
+Michael Bracewell|NZ|A|200|U26
+Rachin Ravindra|NZ|A|200|KKR
+Tom Curran|ENG|A|200|U26
+Wanindu Hasaranga|SL|A|200|LSG
+Ben Duckett|ENG|K|200|DC
+Devon Conway|NZ|K|200|U26
+Jamie Smith|ENG|K|200|U26
+Shai Hope|WI|K|200|U26
+Alzarri Joseph|WI|P|200|U26
+Anrich Nortje|SA|P|200|LSG
+Deepak Chahar|IND|P|200|MI
+Gerald Coetzee|SA|P|200|SRH
+Gus Atkinson|ENG|P|200|U26
+Lockie Ferguson|NZ|P|200|PBKS
+Maheesh Theekshana|SL|P|200|U26
+Mahli Beardman|AUS|P|200|NEW
+Mark Wood|ENG|P|200|GT
+Matheesha Pathirana|SL|P|200|KKR
+Matt Henry|NZ|P|200|CSK
+Mujeeb Ur Rahman|AFG|P|200|U26
+Naveen-ul-Haq|AFG|P|200|U26
+Sean Abbott|AUS|P|200|U26
+Sonny Baker|ENG|P|200|NEW
+Trent Boult|NZ|P|200|MI
+William O'Rourke|NZ|P|200|U26
+Charith Asalanka|SL|B|100|U26
+Pathum Nissanka|SL|B|100|DC
+Reeza Hendricks|SA|B|100|U26
+Shahrukh Khan|IND|B|100|GT
+Towhid Hridoy|BAN|B|100|NEW
+Matthew Short|AUS|A|150|CSK
+Mitchell Owen|AUS|A|150|PBKS
+Beau Webster|AUS|A|125|U26
+Kyle Mayers|WI|A|125|U26
+Roston Chase|WI|A|125|U26
+Daniel Sams|AUS|A|100|U26
+Dwaine Pretorius|SA|A|100|U26
+George Linde|SA|A|100|LSG
+Gulbadin Naib|AFG|A|100|U26
+Kamindu Mendis|SL|A|100|SRH
+Rehan Ahmed|ENG|A|100|DC
+Wiaan Mulder|SA|A|100|U26
+William Sutherland|AUS|A|100|U26
+Rahmanullah Gurbaz|AFG|K|150|U26
+Jonny Bairstow|ENG|K|100|U26
+Kusal Perera|SL|K|100|U26
+Matthew Breetzke|SA|K|100|LSG
+Adam Milne|NZ|P|150|RR
+Jason Behrendorff|AUS|P|150|U26
+Jhye Richardson|AUS|P|150|U26
+Josh Tongue|ENG|P|150|NEW
+Mustafizur Rahman|BAN|P|150|KKR
+Nahid Rana|BAN|P|150|NEW
+Riley Meredith|AUS|P|150|U26
+Saqib Mahmood|ENG|P|150|U26
+Shamar Joseph|WI|P|150|U26
+Spencer Johnson|AUS|P|150|U26
+Umesh Yadav|IND|P|150|U26
+Olly Stone|ENG|P|125|U26
+Akash Deep|IND|P|100|KKR
+Allah Ghazanfar|AFG|P|100|MI
+Blessing Muzarabani|ZIM|P|100|KKR
+Dushmantha Chameera|SL|P|100|DC
+Fazalhaq Farooqi|AFG|P|100|U26
+Hasan Mahmud|BAN|P|100|NEW
+Jaydev Unadkat|IND|P|100|SRH
+Kwena Maphaka|SA|P|100|RR
+Rishad Hossain|BAN|P|100|NEW
+Tushar Deshpande|IND|P|100|RR
+Waqar Salamkheil|AFG|P|100|U26
+Ackeem Auguste|WI|B|75|U26
+Karun Nair|IND|B|75|DC
+Mayank Agarwal|IND|B|75|U26
+Nehal Wadhera|IND|B|75|PBKS
+Nitish Rana|IND|B|75|DC
+Rahul Tripathi|IND|B|75|KKR
+Sediqullah Atal|AFG|B|75|U26
+Tim Robinson|NZ|B|75|U26
+Bevon-John Jacobs|NZ|A|75|U26
+Deepak Hooda|IND|A|75|U26
+Dian Forrester|SA|A|75|CSK
+Dunith Wellalage|SL|A|75|U26
+Muhammad Abbas|NZ|A|75|U26
+Zak Foulkes|NZ|A|75|CSK
+Abhishek Porel|IND|K|75|DC
+Benjamin McDermott|AUS|K|75|U26
+Connor Esterhuizen|SA|K|75|GT
+KS Bharat|IND|K|75|U26
+Kusal Mendis|SL|K|75|U26
+Billy Stanlake|AUS|P|75|U26
+Binura Fernando|SL|P|75|U26
+Chetan Sakariya|IND|P|75|U26
+David Payne|ENG|P|75|SRH
+Dilshan Madushanka|SL|P|75|SRH
+George Garton|ENG|P|75|U26
+Ishant Sharma|IND|P|75|GT
+Joshua Little|IRE|P|75|U26
+Keshav Maharaj|SA|P|75|MI
+Kuldeep Sen|IND|P|75|RR
+Matthew Potts|ENG|P|75|U26
+Nathan Smith|NZ|P|75|U26
+Navdeep Saini|IND|P|75|KKR
+Obed McCoy|WI|P|75|U26
+Qais Ahmad|AFG|P|75|U26
+Richard Gleeson|ENG|P|75|RCB
+Sandeep Warrier|IND|P|75|U26
+Shoriful Islam|BAN|P|75|NEW
+Tanzim Hasan Sakib|BAN|P|75|U26
+Taskin Ahmed|BAN|P|75|U26
+Umran Malik|IND|P|75|KKR
+Viyaskanth Vijayakanth|SL|P|75|U26
+Wesley Agar|AUS|P|75|U26
+Aarya Desai|IND|B|30|U26
+Aaryavir Sehwag|IND|B|30|U19
+Abhinav Manohar|IND|B|30|U26
+Abhinav Tejrana|IND|B|30|U26
+Ankit Kumar|IND|B|30|U26
+Anmolpreet Singh|IND|B|30|U26
+Atharva Taide|IND|B|30|U26
+Ayush Vartak|IND|B|30|U26
+Daniel Lategan|SA|B|30|U26
+Danish Malewar|IND|B|30|MI
+Irfan Umair|IND|B|30|U26
+Karan Lal|IND|B|30|U26
+Macneil Noronha|IND|B|30|CSK
+Manan Vohra|IND|B|30|U26
+Miles Hammond|ENG|B|30|U26
+Mohit Rathee|IND|B|30|U26
+Pukhraj Mann|IND|B|30|U26
+Pyla Avinash|IND|B|30|PBKS
+Rohan Kunnummal|IND|B|30|U26
+Sahil Parakh|IND|B|30|DC
+Salman Nizar|IND|B|30|U26
+Siddharth Yadav|IND|B|30|U26
+Swastik Chikara|IND|B|30|U26
+Traveen Mathew|SL|B|30|U26
+Tristan Luus|SA|B|30|U26
+Vedant Trivedi|IND|B|30|U19
+Yash Dhull|IND|B|30|U26
+Mangesh Yadav|IND|A|50|RCB
+Prashant Veer|IND|A|50|CSK
+Jalaj Saxena|IND|A|40|U26
+Aaron George|IND|A|30|U19
+Abid Mushtaq|IND|A|30|U26
+Ajay Mandal|IND|A|30|DC
+Aman Khan|IND|A|30|CSK
+Arshin Kulkarni|IND|A|30|LSG
+Atharva Ankolekar|IND|A|30|MI
+Atit Sheth|IND|A|30|U26
+Auqib Dar|IND|A|30|U26
+Chintal Gandhi|IND|A|30|U26
+Daksh Kamra|IND|A|30|KKR
+Darshan Nalkande|IND|A|30|U26
+Delano Potgieter|SA|A|30|U26
+Eden Apple Tom|IND|A|30|U26
+Harsh Tyagi|IND|A|30|U26
+Khilan Patel|IND|A|30|U19
+Manoj Bhandage|IND|A|30|U26
+Mayank Rawat|IND|A|30|MI
+Mohamed Enaan|IND|A|30|U19
+Ritik Tada|IND|A|30|U26
+Sairaj Patil|IND|A|30|U26
+Sanvir Singh|IND|A|30|U26
+Satvik Deswal|IND|A|30|RCB
+Suyash Prabhudessai|IND|A|30|U26
+Tanush Kotian|IND|A|30|U26
+Utkarsh Singh|IND|A|30|U26
+Vihaan Malhotra|IND|A|30|RCB
+Vijay Shankar|IND|A|30|U26
+Vishal Nishad|IND|A|30|PBKS
+Yuvraj Chaudhary|IND|A|30|U26
+Joe Clarke|ENG|K|50|U26
+Tom Moores|ENG|K|40|U26
+Abhigyan Kundu|IND|K|30|U19
+Abhishek Pathak|IND|K|30|U26
+Harvansh Singh|IND|K|30|U19
+Kunal Rathore|IND|K|30|U26
+Luvnith Sisodia|IND|K|30|KKR
+Rahul Buddhi|IND|K|30|U26
+Ravi Singh|IND|K|30|RR
+Ricky Bhui|IND|K|30|U26
+Saurav Chuahan|IND|K|30|U26
+Tejasvi Singh|IND|K|30|KKR
+Tushar Raheja|IND|K|30|U26
+Vansh Bedi|IND|K|30|U26
+Yashvardhan Dalal|IND|K|30|U26
+Karn Sharma|IND|P|50|U26
+Mayank Markande|IND|P|50|MI
+Arab Gul|AFG|P|40|U26
+KM Asif|IND|P|40|U26
+Rajvardhan Hangargekar|IND|P|40|U26
+Shubham Agrawal|IND|P|40|U26
+Akash Madhwal|IND|P|30|CSK
+Amit Kumar|IND|P|30|SRH
+Bayanda Majola|SA|P|30|U26
+Chama Milind|IND|P|30|U26
+D Deepesh|IND|P|30|U19
+Henil Patel|IND|P|30|U19
+Izaz Sawariya|IND|P|30|U26
+Jikku Bright|IND|P|30|U26
+KC Cariappa|IND|P|30|U26
+Kamlesh Nagarkoti|IND|P|30|U26
+Kartik Chadha|IND|P|30|U26
+Kartikeya Singh|IND|P|30|U26
+Kishan Kumar Singh|IND|P|30|U19
+Kuldip Yadav|IND|P|30|CSK
+Kulwant Khejroliya|IND|P|30|GT
+M Dheeraj Kumar|IND|P|30|U26
+Mani Sankar Mura Singh|IND|P|30|U26
+Mayank Dagar|IND|P|30|U26
+Mohammed Izhar|IND|P|30|MI
+Money Grewal|IND|P|30|U26
+Murugan Ashwin|IND|P|30|U26
+Naman Tiwari|IND|P|30|LSG
+Onkar Tarmale|IND|P|30|SRH
+PV Satyanarayana Raju|IND|P|30|U26
+Praveen Dubey|IND|P|30|PBKS
+Prithviraj Yarra|IND|P|30|GT
+RS Ambrish|IND|P|30|U26
+Raj Limbani|IND|P|30|U26
+Rakibul Hasan|BAN|P|30|U26
+Shivam Shukla|IND|P|30|U26
+Simarjeet Singh|IND|P|30|U26
+Tanay Thyagarajann|IND|P|30|U26
+Tejas Baroka|IND|P|30|U26
+Tia van Vuuren|SA|P|30|U26
+Udhav Mohan|IND|P|30|U19
+Vidwath Kaverappa|IND|P|30|U26
+Vidyadhar Patil|IND|P|30|U26
+Vignesh Puthur|IND|P|30|RR
+Vijay Kumar|IND|P|30|U26
+Wahidullah Zadran|AFG|P|30|U26
+Yudhvir Singh|IND|P|30|RR
+Nikhil Chaudhary|IND|T|40|U26
+Aaqib Khan|IND|T|30|U26
+Aaron Varghese|IND|T|30|U26
+Abdul Bazith|IND|T|30|U26
+Abhilash Shetty|IND|T|30|U26
+Abhimanyusingh Rajput|IND|T|30|U26
+Adarsh Singh|IND|T|30|U26
+Ahammed Imran|IND|T|30|U26
+Ajitesh Guruswamy|IND|T|30|U26
+Akash Pugazhanthi|IND|T|30|U26
+Akhil Scaria|IND|T|30|U26
+Akshu Bajwa|IND|T|30|U26
+Aman Shekhawat|IND|T|30|U26
+Anuj Thakral|IND|T|30|U26
+Anvay Dravid|IND|T|30|U19
+Arfaz Mohammad|IND|T|30|U26
+Arjun Rajput|IND|T|30|U19
+Arpit Guleria|IND|T|30|U26
+Arpit Rana|IND|T|30|U26
+Arsh Kabin Ranga|IND|T|30|U26
+Aryaman Singh Dhaliwal|IND|T|30|U26
+Aryan Savsani|IND|T|30|U19
+Atal Rai|IND|T|30|U26
+Atif Mushtaq|IND|T|30|U26
+Ayaz Khan|IND|T|30|U26
+Ayush Doseja|IND|T|30|U26
+Bailapudi Yeswanth|IND|T|30|U26
+Bal Krishna|IND|T|30|U26
+Bhanu Pania|IND|T|30|U26
+Bipin Saurabh|IND|T|30|U26
+C Rakshann Readdi|IND|T|30|U26
+Deependra Singh|IND|T|30|U26
+Dharmendrasinh Jadeja|IND|T|30|U26
+Dhurmil Matkar|IND|T|30|U26
+Divesh Sharma|IND|T|30|U26
+Esakkimuthu Ayyakutti|IND|T|30|U26
+Hardik Raj|IND|T|30|U26
+Hardik Tamore|IND|T|30|U26
+Hemang Patel|IND|T|30|U26
+Himanshu Bisht|IND|T|30|U26
+Himanshu Sharma|IND|T|30|U26
+Hritik Shokeen|IND|T|30|U26
+Ishan Mulchandani|IND|T|30|U26
+Ishan Porel|IND|T|30|U26
+Ishan Sood|IND|T|30|U19
+Jagadeesha Suchith|IND|T|30|U26
+Jhathavedh Subramanyan|IND|T|30|U26
+K Ajay Singh|IND|T|30|U26
+Kavya Patel|IND|T|30|U19
+Kunal Chandela|IND|T|30|U26
+Kushagra Ojha|IND|T|30|U19
+Lakshya Raichandani|IND|T|30|U19
+Lalit Yadav|IND|T|30|U26
+Luckyrajsinh Vaghela|IND|T|30|U26
+Madhav Bajaj|IND|T|30|U26
+Manal Chauhan|IND|T|30|U19
+Manan Bhardwaj|IND|T|30|U26
+Manish Reddy|IND|T|30|U26
+Manvanth Kumar|IND|T|30|U26
+Maramreddy Reddy|IND|T|30|U26
+Mayank Gusain|IND|T|30|U26
+Mohamed Ali|IND|T|30|U26
+Mohit Ulva|IND|T|30|U19
+Mridul Surroch|IND|T|30|U26
+Muhammed Sharafuddeen|IND|T|30|U26
+Naga Vijaya Subhash|IND|T|30|U19
+Naman Pushpak|IND|T|30|U26
+Nasir Lon|IND|T|30|U26
+Ninad Rathva|IND|T|30|U26
+Nishanth Saranu|IND|T|30|U26
+Nitin Sai Yadav|IND|T|30|U26
+Pankaj Jaswal|IND|T|30|U26
+Parikshit Dhanak|IND|T|30|U26
+Parikshit Valsangkar|IND|T|30|U26
+Parth Rekhade|IND|T|30|U26
+Parth Vats|IND|T|30|U26
+Prerit Dutta|IND|T|30|U26
+Prince Rai|IND|T|30|U26
+Purav Agarwal|IND|T|30|U26
+Qamran Iqbal|IND|T|30|U26
+R Rajkumar|IND|T|30|U26
+R Sonu Yadav|IND|T|30|U26
+Raghav Goyal|IND|T|30|U26
+Rajan Kumar|IND|T|30|U26
+Rajat Baghel|IND|T|30|U19
+Rajat Verma|IND|T|30|U26
+Ravi Kumar|IND|T|30|U26
+Ripal Patel|IND|T|30|U26
+Rishabh Chauhan|IND|T|30|U26
+Rohit Yadav|IND|T|30|U26
+Roshan Wagshare|IND|T|30|U26
+Sabir Khan|IND|T|30|U26
+Sachin Dhas|IND|T|30|U26
+Sadek Hussain|IND|T|30|U26
+Safvan Patel|IND|T|30|U26
+Sagar Solanki|IND|T|30|U26
+Sammar Gajjar|IND|T|30|U26
+Sanjay Yadav|IND|T|30|U26
+Saumy Pandey|IND|T|30|U26
+Sayan Ghosh|IND|T|30|U26
+Sayed Irfan Aftab|IND|T|30|U26
+Shams Mulani|IND|T|30|U26
+Shavin Vinodh|IND|T|30|U19
+Shiva Singh|IND|T|30|U26
+Shivalik Sharma|IND|T|30|U26
+Shreevatsha Acharya|IND|T|30|U26
+Shreyan Chakraborty|IND|T|30|U26
+Shreyas Chavan|IND|T|30|U26
+Shubham Kapse|IND|T|30|U26
+Shubham Rana|IND|T|30|U26
+Shubhang Hegde|IND|T|30|U26
+Siddhant Rana|IND|T|30|U26
+Siddharth Joon|IND|T|30|U26
+Srihari Nair|IND|T|30|U26
+Sunil Kumar|IND|T|30|U26
+Sunny Sandhu|IND|T|30|U26
+VK Vineeth|IND|T|30|U19
+Varun Raj Singh Bisht|IND|T|30|U26
+Vishal Mandwal|IND|T|30|U26
+Vishnu Solanki|IND|T|30|U26
+Vishvarajsinh Jadeja|IND|T|30|U26
+Vivrant Sharma|IND|T|30|U26
+Waseem Khanday|IND|T|30|U26
+Yash Dicholkar|IND|T|30|U26
+Yashbardhan Chauhan|IND|T|30|U19
+Yashveer Goud|IND|T|30|U19`;
+const BASE={S:200,M:100,U:30}, ROLE={B:"Batter",K:"Keeper",A:"All-rounder",P:"Bowler",T:"Role TBC"};
+const $=s=>document.querySelector(s), e=s=>String(s).replace(/[&<>"]/g,c=>"&#"+c.charCodeAt(0)+";");
+const cr=l=>"₹"+(+(l/100).toFixed(2))+" cr", inc=l=>l<100?10:l<200?20:l<500?25:50;
+let db,me,adm=false,own=false,eng=false,PINH="",SV="",rc=0,rc2=0,PK="",TAB=Math.random().toString(36).slice(2),S=null,P={},TM={},CL={},BD={},LG=[],busy=false;const OPEN=new Set(["pool-Up next"]);
+
+function chk(tm,p,amt){const t=TM[tm];if(!t)return"No team";if(S&&S.bt===tm)return"You lead";if(t.sl<=0)return"Squad full";
+ if(p.o&&t.os<=0)return"No overseas slot";if(amt>t.pu-(t.sl-1)*MINB)return"Not enough purse";return""}
+const need=()=>S.bt?S.bid+inc(S.bid):P[S.pid].b;
+const setS=async o=>{S=o;await db.doc("cfg/state").set(o)};
+const lg=o=>db.collection("log").add({...o,ts:Date.now()});
+const pool=()=>Object.entries(P).filter(([,p])=>p.st==="pool").sort((a,b)=>a[1].ord-b[1].ord);
+const ords=()=>Object.values(P).map(p=>p.ord);
+
+const par=async(a,f,n=10)=>{for(let i=0;i<a.length;i+=n)await Promise.all(a.slice(i,i+n).map((x,j)=>f(x,i+j)))};
+const loadPlayers=()=>par(POOL.split("\n"),(l,i)=>{const[n,c,r,b,src]=l.split("|");return db.doc("players/P"+String(i+1).padStart(3,"0")).set({n,c,o:c!=="IND",r,b:+b,src,ord:i,st:"pool",tm:null,pr:0})});
+async function init(){
+ $("#ib").disabled=true;await loadPlayers();
+ await par(TEAMS,([id,n,c,pu,sl,os,sq])=>db.doc("teams/"+id).set({n,c,pu,sl,os,sq,bought:[]}));
+ await setS({ph:"idle",pid:null,bid:0,bt:null,end:0,left:0,nb:0,until:0});
+}
+async function restart(){
+ if(!rc2){rc2=1;setTimeout(()=>rc2=0,4000);return note("Tap Restart again to wipe all results and start over")}rc2=0;
+ await setS({ph:"idle",pid:null,bid:0,bt:null,end:0,left:0,nb:0,until:0,rid:Date.now()});
+ await par(Object.keys(P),id=>db.doc("players/"+id).delete());
+ await par(LG.map(l=>l.id),id=>db.doc("log/"+id).delete());
+ await par(Object.keys(BD),id=>db.doc("bids/"+id).delete().catch(()=>{}));
+ await par(TEAMS,([id,n,c,pu,sl,os,sq])=>db.doc("teams/"+id).set({n,c,pu,sl,os,sq,bought:[]}));
+ await loadPlayers();note("Auction restarted")}
+async function pick(){const id=PK,p=P[id];
+ if(!p)return note("Search and select a player first");
+ if(p.st==="sold")return note("That player is already sold");
+ if(S.ph==="live"&&S.bt)return note("Current player has a bid, let the hammer fall first");
+ if(p.st!=="pool")await db.doc("players/"+id).update({st:"pool"});
+ await setS({ph:"live",pid:id,bid:0,bt:null,end:Date.now()+CLK*1000,left:0,nb:0,until:0,rid:S.rid||0});
+ await lg({k:"pick",t:"Auctioneer put "+p.n+" on the block"})}
+function fillPick(){const box=$("#pk");if(!box)return;const q=($("#sq").value||"").toLowerCase();
+ const m=Object.entries(P).filter(([,p])=>p.st!=="sold"&&p.n.toLowerCase().includes(q)).sort((a,b)=>a[1].ord-b[1].ord).slice(0,8);
+ box.innerHTML=m.map(([id,p])=>`<button data-p="${id}" style="${id===PK?"outline:2px solid var(--ac)":""}">${p.o?"✈":"🇮🇳"} ${e(p.n)} · ${cr(p.b)}${p.st==="unsold"?" · unsold":""}</button>`).join("")||"<span class=mu>No match</span>";
+ box.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>{PK=b.dataset.p;fillPick()});
+ $("#psel").textContent=PK&&P[PK]?"Selected: "+P[PK].n:"Nothing selected"}
+function fillRel(){const el=$("#rl");if(!el)return;const c=Object.entries(CL);
+ el.innerHTML=c.length?c.map(([u,x])=>`<button data-r="${e(u)}">${e(x.tm)} ✕</button>`).join(" "):"<span class=mu>No teams claimed</span>";
+ el.querySelectorAll("[data-r]").forEach(b=>b.onclick=()=>db.doc("claims/"+b.dataset.r).delete())}
+async function reload(){
+ if(S.ph==="live"||Object.values(P).some(p=>p.st==="sold"))return note("Only possible before the first sale, with the auction paused or idle");
+ if(!rc){rc=1;setTimeout(()=>rc=0,4000);return note("Tap Reload pool again to confirm")}rc=0;
+ await par(Object.keys(P),id=>db.doc("players/"+id).delete());await loadPlayers();await setS({...S,ph:"idle",pid:null,bid:0,bt:null})}
+async function startNext(){const q=pool();if(!q.length)return setS({...S,ph:"done",pid:null});
+ await setS({ph:"live",pid:q[0][0],bid:0,bt:null,end:Date.now()+CLK*1000,left:0,nb:0,until:0,rid:S.rid||0})}
+async function processBids(){
+ if(busy||!eng||!S||S.ph!=="live")return;busy=true;
+ try{for(;;){const p=P[S.pid],n=need();
+  const c=Object.values(BD).filter(b=>b.pid===S.pid&&(b.rid||0)===(S.rid||0)&&b.amt===n&&!chk(b.tm,p,n)).sort((a,b)=>a.ts-b.ts)[0];
+  if(!c)break;await setS({...S,bid:n,bt:c.tm,end:Date.now()+CLK*1000,nb:S.nb+1})}}finally{busy=false}}
+async function settle(){
+ if(busy)return;busy=true;
+ try{const id=S.pid,p=P[id];
+  if(S.bt){const t=TM[S.bt];
+   await db.doc("players/"+id).update({st:"sold",tm:S.bt,pr:S.bid});
+   await db.doc("teams/"+S.bt).update({pu:t.pu-S.bid,sl:t.sl-1,os:t.os-(p.o?1:0),bought:[...(t.bought||[]),{id,n:p.n,pr:S.bid}]});
+   await lg({k:"sold",pid:id,tm:S.bt,pr:S.bid,t:p.n+" → "+S.bt+" for "+cr(S.bid)})}
+  else{await db.doc("players/"+id).update({st:"unsold"});await lg({k:"unsold",t:p.n+" went unsold"})}
+  await setS({...S,ph:"break",until:Date.now()+BRK})}finally{busy=false}}
+async function bid(){
+ if(!S||S.ph!=="live"||!CL[me])return;const p=P[S.pid],amt=need();
+ if(chk(CL[me].tm,p,amt))return;await db.doc("bids/"+me).set({tm:CL[me].tm,pid:S.pid,amt,rid:S.rid||0,ts:Date.now()})}
+const A={
+ async start(){if(S.ph==="paused")await setS({...S,ph:"live",end:Date.now()+S.left});else await startNext()},
+ async pause(){if(S.ph==="live")await setS({...S,ph:"paused",left:Math.max(0,S.end-Date.now())})},
+ async skip(){if(S.ph!=="live")return;const id=S.pid,o=Math.max(...ords())+1;P[id]={...P[id],ord:o};await db.doc("players/"+id).update({ord:o});await lg({k:"skip",t:P[id].n+" skipped (back of queue)"});await startNext()},
+ async undo(){if(S.ph==="live")return note("Pause the auction first");
+  const l=LG.filter(x=>x.k==="sold"&&!x.un)[0];if(!l)return;const p=P[l.pid],t=TM[l.tm];
+  await db.doc("teams/"+l.tm).update({pu:t.pu+l.pr,sl:t.sl+1,os:t.os+(p.o?1:0),bought:(t.bought||[]).filter(b=>b.id!==l.pid)});
+  await db.doc("players/"+l.pid).update({st:"pool",tm:null,pr:0,ord:Math.min(...ords())-1});
+  await db.doc("log/"+l.id).update({un:true});await lg({k:"undo",t:"UNDO: "+p.n+" returned to pool, "+cr(l.pr)+" refunded to "+l.tm})},
+ reload,restart,pick,
+ async add(){const n=$("#an").value.trim();if(!n)return;
+  await db.doc("players/p"+Date.now()).set({n,o:$("#ao").value==="O",r:$("#ar").value,b:+$("#ab").value,ord:Math.max(...ords())+1,st:"pool",tm:null,pr:0});
+  await lg({k:"add",t:"Added to pool: "+n});$("#an").value=""}};
+
+function render(){
+ $("#msg").hidden=true;$("#app").hidden=false;$("#adm").hidden=!adm;$("#mst1").hidden=adm;$("#mst2").hidden=!adm;$("#mm").textContent=adm?(eng?"This device runs the clock":"Another master device runs the clock"):(PINH?"":"No host PIN yet: the first person to set one becomes the host. Host, do this before sharing the link.");$("#pu").textContent=PINH?"Unlock":"Set host PIN";
+ if(adm){renderAdm();fillPick();fillRel()}
+ const my=CL[me]&&CL[me].tm;let h="";
+ if(!S){h="<div class=mu>Auction not set up yet.</div>"+(adm?"<button id=ib class=p>Initialise IPL 2027 auction</button>":"")}
+ else{const p=P[S.pid],lt=LG[0];
+  if(S.ph==="idle")h="<div class=big>Waiting for the auctioneer…</div>";
+  else if(S.ph==="done")h="<div class=big>Auction complete 🏆</div>";
+  else if(S.ph==="break")h=lt&&lt.k==="sold"?`<div class=sold>SOLD! 🔨</div><div>${e(lt.t)}</div>`:`<div class=big>${lt?e(lt.t):""}</div>`;
+  else if(p){const lead=S.bt?TM[S.bt]:null,n=need(),er=my?chk(my,p,n):"Claim a team below";
+   h=`<div class=row><div><div class=mu>${S.ph==="paused"?"⏸ PAUSED":"ON THE BLOCK"} · ${p.o?"✈ Overseas":"🇮🇳 Indian"} · ${ROLE[p.r]}</div><div class=big>${e(p.n)}</div><div class=mu>Base ${cr(p.b)}</div></div><div id=clk></div></div>
+   <div class=t style="--k:${lead?lead.c:"var(--ln)"}"><div class=mu>${lead?"Highest bid":"No bids yet"}</div><div class=big>${S.bt?cr(S.bid)+" · "+S.bt:"—"}</div></div>
+   <button id=bb class=p ${er||S.ph!=="live"?"disabled":""}>${my?(er&&S.ph==="live"?e(er):"BID "+cr(n)+" as "+my):"Pick your team below"}</button>`}}
+ const chips=`<div class=chips>${TEAMS.map(([id,,c])=>{const k=Object.values(CL).some(x=>x.tm===id);return`<button class=chip data-t="${id}" style="--k:${c}" ${k?"disabled":""}>${id}${k?" ✓":""}</button>`}).join("")}</div>`;
+ if(!my)h+=adm?`<details data-d="claim" ${OPEN.has("claim")?"open":""} style="margin-top:10px"><summary class=mu>Play as a team (optional)</summary>${chips}</details>`:`<h3 style="margin-top:12px">Claim your team</h3>`+chips;
+ else h+=`<div class=row style="margin-top:8px"><span class=mu>You are ${my}</span><button id=lv>Leave team</button></div>`;
+ $("#top").innerHTML=h;
+ if($("#lv"))$("#lv").onclick=()=>db.doc("claims/"+me).delete();
+ if($("#ib"))$("#ib").onclick=init;if($("#bb"))$("#bb").onclick=bid;
+ document.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>db.doc("claims/"+me).set({tm:b.dataset.t}));
+ $("#teams").innerHTML=Object.entries(TM).map(([id,t])=>{const bt=(t.bought||[]);return`<details class=t style="--k:${t.c}" data-d="${id}" ${OPEN.has(id)?"open":""}><summary><b>${id}</b> · ${cr(t.pu)} · ${t.sl} slots · ${t.os} OS</summary><div class=mu><b>Bought:</b> ${bt.length?bt.map(b=>e(b.n)+" "+cr(b.pr)).join(", "):"—"}<br><b>Retained:</b> ${e(t.sq)}</div></details>`}).join("");
+ document.querySelectorAll("[data-d]").forEach(d=>d.ontoggle=()=>d.open?OPEN.add(d.dataset.d):OPEN.delete(d.dataset.d));
+ $("#log").innerHTML=LG.slice(0,25).map(l=>`<div class="lg ${l.un?"un":""}">${e(l.t)}</div>`).join("")||"<span class=mu>Nothing yet</span>";
+ const pl=Object.values(P).sort((a,b)=>a.ord-b.ord),row=p=>`<div class=lg>${p.o?"✈":"🇮🇳"} ${e(p.n)} <span class=mu>${p.c||""} · ${ROLE[p.r]}${p.src?" · "+p.src:""} · ${cr(p.b)}${p.st==="sold"?" · SOLD "+p.tm+" "+cr(p.pr):p.st==="unsold"?" · unsold":""}</span></div>`,
+ grp=(t,f)=>{const a=pl.filter(f);return`<details data-d="pool-${t}" ${OPEN.has("pool-"+t)?"open":""}><summary><b>${t}</b> (${a.length})</summary>${a.map(row).join("")}</details>`};
+ $("#pool").innerHTML=grp("Up next",p=>p.st==="pool")+grp("Sold",p=>p.st==="sold")+grp("Unsold",p=>p.st==="unsold");
+ document.querySelectorAll("#pool [data-d]").forEach(d=>d.ontoggle=()=>d.open?OPEN.add(d.dataset.d):OPEN.delete(d.dataset.d));
+ tick()}
+function renderAdm(){const a=$("#adm");if(a.dataset.r)return;a.dataset.r=1;
+ a.innerHTML=`<h3>Auctioneer controls</h3><div class=chips><button id=a1>▶ Start / Resume</button><button id=a2>⏸ Pause</button><button id=a3>⏭ Skip player</button><button id=a4>↩ Undo last sale</button><button id=a6>🔄 Reload pool</button><button id=a7>♻ Restart auction</button></div>
+ <details style="margin-top:8px"><summary>🎯 Pick a player to auction now</summary><input id=sq placeholder="Search player name"><div id=pk class=chips></div><div id=psel class=mu></div><button id=a8 class=p style="font-size:15px">Auction selected player now</button></details>
+ <details style="margin-top:8px"><summary>Release a team claim</summary><div id=rl class=chips style="margin-top:6px"></div></details>
+ <details style="margin-top:8px"><summary>Add player to pool</summary><input id=an placeholder="Player name"><select id=ao><option value=I>Indian</option><option value=O>Overseas</option></select><select id=ar><option value=B>Batter</option><option value=K>Keeper</option><option value=A>All-rounder</option><option value=P>Bowler</option></select><select id=ab><option value=30>Base ₹0.3 cr</option><option value=100>Base ₹1 cr</option><option value=200>Base ₹2 cr</option></select><button id=a5 class=p style="font-size:15px">Add to end of queue</button></details>
+ <div class=mu style="margin-top:6px">Keep this tab open: it runs the clock and settles sales.</div>`;
+ [["a1","start"],["a2","pause"],["a3","skip"],["a4","undo"],["a5","add"],["a6","reload"],["a7","restart"],["a8","pick"]].forEach(([i,f])=>$("#"+i).onclick=()=>S&&A[f]());$("#sq").oninput=fillPick}
+const sha=async s=>[...new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode("ipl27:"+s)))].map(x=>x.toString(16).padStart(2,"0")).join("");
+function note(m){const n=$("#nt");n.textContent=m;n.hidden=false;clearTimeout(note.t);note.t=setTimeout(()=>n.hidden=true,3500)}
+function setAdm(){adm=own||(!!PINH&&SV===PINH);lease();render()}
+async function lease(){const was=eng;eng=false;if(adm)try{eng=!!(await db.doc("cfg/engine").acquire({holder:me+TAB,ttlMs:12000})).acquired}catch{}if(eng!==was)render()}
+async function unlock(){const v=$("#pn").value.trim();
+ if(!PINH){if(!/^\d{4,8}$/.test(v))return note("PIN must be 4 to 8 digits");const h=await sha(v);await db.doc("cfg/pin").set({h});SV=h;try{localStorage.setItem("m27",h)}catch{}$("#pn").value="";return note("Host PIN set. You are the host")}
+ const h=await sha(v);if(h!==PINH)return note("Wrong PIN");SV=h;try{localStorage.setItem("m27",h)}catch{}$("#pn").value="";setAdm()}
+async function setPin(){const v=$("#np").value.trim();if(!/^\d{4,8}$/.test(v))return note("PIN must be 4 to 8 digits");const h=await sha(v);await db.doc("cfg/pin").set({h});SV=h;try{localStorage.setItem("m27",h)}catch{}$("#np").value="";note("PIN saved")}
+function tick(){
+ if(!S)return;const now=Date.now();
+ const c=$("#clk");if(c){const ms=S.ph==="paused"?S.left:S.end-now,s=Math.max(0,Math.ceil(ms/1000));c.textContent=s+"s";c.className=s<=10?"low":""}
+ if(!eng||busy)return;
+ if(S.ph==="live"&&now>=S.end)settle();else if(S.ph==="break"&&now>=S.until)startNext()}
+
+(async()=>{
+ const t=setTimeout(()=>{if($("#app").hidden)$("#msg").textContent="Could not connect. Check your internet connection and reload."},10000);
+ const cl=window.claude;let u;try{db=cl&&await cl.use("db");u=cl&&await cl.use("user")}catch(x){clearTimeout(t);$("#msg").textContent="Setup needed: "+x.message;return}
+ if(!db||!u)return;me=await u.id();own=await u.isOwner();clearTimeout(t);try{SV=localStorage.getItem("m27")||""}catch{}
+ const sub=(p,f)=>db.collection(p).onSnapshot(q=>{f(q.docs);render();if(eng)processBids()});
+ db.doc("cfg/state").onSnapshot(s=>{S=s.exists?s.data():null;render();if(eng)processBids()});
+ sub("players",d=>{P={};d.forEach(x=>P[x.id]=x.data())});
+ sub("teams",d=>{TM={};d.forEach(x=>TM[x.id]=x.data())});
+ sub("claims",d=>{CL={};d.forEach(x=>CL[x.id]=x.data())});
+ sub("bids",d=>{BD={};d.forEach(x=>BD[x.id]=x.data())});
+ sub("log",d=>{LG=d.map(x=>({id:x.id,...x.data()})).sort((a,b)=>b.ts-a.ts)});
+ db.doc("cfg/pin").onSnapshot(s=>{PINH=s.exists?s.data().h:"";setAdm()});
+ $("#pu").onclick=unlock;$("#ps").onclick=setPin;setAdm();setInterval(tick,500);setInterval(lease,4000);
+})();
+</script></body></html>
