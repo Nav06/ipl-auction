@@ -18,6 +18,7 @@ button.p{background:var(--ac);color:#111;width:100%;font-size:18px;padding:14px;
 .t{border-left:6px solid var(--k);padding:6px 8px;margin:6px 0;background:var(--bg);border-radius:8px}
 .sold{font-size:28px;font-weight:900;color:var(--ok);animation:pop .5s}@keyframes pop{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
 details summary{cursor:pointer}input,select{font:inherit;padding:8px;border-radius:8px;border:1px solid var(--ln);background:var(--bg);color:var(--tx);width:100%;margin:3px 0}
+.sq{display:flex;flex-wrap:wrap;gap:3px 10px;margin:2px 0 6px}.sq span{white-space:nowrap}.ic{font-size:10px;border:1px solid var(--ln);border-radius:6px;padding:0 3px;font-weight:600}
 .lg{font-size:13px;padding:3px 0;border-bottom:1px solid var(--ln)}.un{text-decoration:line-through;opacity:.5}
 </style></head><body>
 <h1>🏏 IPL 2027 Mock Auction</h1>
@@ -26,7 +27,7 @@ details summary{cursor:pointer}input,select{font:inherit;padding:8px;border-radi
 <div id="app" hidden>
 <div id="top" class="c"></div>
 <div id="adm" class="c" hidden></div>
-<div class="c"><h3>Teams · purse · slots</h3><div id="teams"></div></div>
+<div class="c"><h3>Teams · purse · slots</h3><div class="mu" style="margin-bottom:6px">✈ overseas · 🏏L left-hand bat · ⚾L left-arm bowler · 🧤 keeper</div><div id="teams"></div></div>
 <div class="c"><h3>Player pool</h3><div id="pool"></div></div>
 <div id="mst" class="c"><h3>🔑 Master mode</h3><div id="mst1"><input id="pn" type="password" inputmode="numeric" placeholder="Master PIN"><button id="pu">Unlock</button></div><div id="mst2" hidden><div class="mu">Master controls unlocked</div><input id="np" type="password" inputmode="numeric" placeholder="New PIN (4–8 digits)"><button id="ps">Set / change PIN</button></div><div id="mm" class="mu"></div></div>
 <div class="c"><h3>Live log</h3><div id="log"></div></div>
@@ -53,18 +54,18 @@ if(!window.claude){let fsP;
    collection:c=>({onSnapshot:f=>fs.collection(c).onSnapshot(f,e=>console.error(c,e)),add:d=>fs.collection(c).add(d)})}}}}
 </script>
 <script>
-const CLK=60, BRK=6000, MINB=30;
+const CLK=30, BRK=6000, MINB=30;
 const TEAMS=[
-["CSK","Chennai Super Kings","#f9cd05",2805,6,2,"Ruturaj Gaikwad,Sanju Samson,Shivam Dube,Ayush Mhatre,Dewald Brevis,Urvil Patel,Kartik Sharma,Sarfaraz Khan,Noor Ahmad,Rahul Chahar,Anshul Kamboj,Gurjapneet Singh,Mukesh Choudhary,Shreyas Gopal,Ramakrishna Ghosh,Akeal Hosein,Jamie Overton,Liam Livingstone,Jack Edwards"],
-["DC","Delhi Capitals","#1c5bd9",3950,9,4,"Axar Patel,KL Rahul,Rishabh Pant,Prithvi Shaw,Sameer Rizvi,Ashutosh Sharma,Tristan Stubbs,David Miller,Lungi Ngidi,Mukesh Kumar,Auqib Nabi,Vipraj Nigam,Madhav Tiwari,Tripurana Vijay,Kyle Jamieson,Zeeshan Ansari"],
-["GT","Gujarat Titans","#3a5fb0",875,3,2,"Shubman Gill,Sai Sudharsan,Jos Buttler,Glenn Phillips,Tom Banton,Kumar Kushagra,Anuj Rawat,Rahul Tewatia,Washington Sundar,Rashid Khan,R Sai Kishore,Manav Suthar,Jayant Yadav,Jason Holder,Kagiso Rabada,Mohammed Siraj,Prasidh Krishna,Gurnoor Brar,Ashok Sharma,Arshad Khan,Nishant Sindhu,Harshal Patel"],
-["KKR","Kolkata Knight Riders","#6b2fa0",4165,8,3,"Cameron Green,Sunil Narine,Rinku Singh,Varun Chakravarthy,Harshit Rana,Finn Allen,Manish Pandey,Rovman Powell,Angkrish Raghuvanshi,Ramandeep Singh,Tim Seifert,Sarthak Ranjan,Anukul Roy,Vaibhav Arora,Saurabh Dubey,Kartik Tyagi,Prashant Solanki"],
-["LSG","Lucknow Super Giants","#00a8a0",4745,7,3,"Nicholas Pooran,Mitchell Marsh,Aiden Markram,Josh Inglis,Ayush Badoni,Abdul Samad,Mukul Choudhary,Akshat Raghuwanshi,Himmat Singh,Shahbaz Ahmed,Digvesh Rathi,Prince Yadav,Mohsin Khan,Mayank Yadav,Akash Singh,Arjun Tendulkar,Kuldeep Yadav,Sam Curran"],
-["MI","Mumbai Indians","#0a64c8",3260,9,2,"Rohit Sharma,Suryakumar Yadav,Jasprit Bumrah,Tilak Varma,Arshdeep Singh,Naman Dhir,Ryan Rickelton,Sherfane Rutherford,Quinton de Kock,Corbin Bosch,Will Jacks,Shardul Thakur,Raj Angad Bawa,Mitchell Santner,Ashwani Kumar,Raghu Sharma"],
-["PBKS","Punjab Kings","#ef4444",1860,6,2,"Shreyas Iyer,Hardik Pandya,Priyansh Arya,Prabhsimran Singh,Shashank Singh,Musheer Khan,Vishnu Vinod,Cooper Connolly,Marcus Stoinis,Azmatullah Omarzai,Marco Jansen,Suryansh Shedge,Xavier Bartlett,Ben Dwarshuis,Yash Thakur,Vijaykumar Vyshak,Yuzvendra Chahal,Harpreet Brar,Harnoor Singh"],
-["RR","Rajasthan Royals","#e91e8c",2705,6,3,"Riyan Parag,Yashasvi Jaiswal,Vaibhav Sooryavanshi,Dhruv Jurel,Ravindra Jadeja,Jofra Archer,Mohammed Shami,Manimaran Siddharth,Shubham Dubey,Aman Rao Perala,Lhuan-dre Pretorius,Donovan Ferreira,Dasun Shanaka,Ravi Bishnoi,Yash Punja,Brijesh Sharma,Sandeep Sharma,Sushant Mishra,Nandre Burger"],
-["RCB","Royal Challengers Bengaluru","#b3121b",1415,5,1,"Virat Kohli,Rajat Patidar,Phil Salt,Devdutt Padikkal,Jitesh Sharma,Tim David,Krunal Pandya,Romario Shepherd,Josh Hazlewood,Bhuvneshwar Kumar,Suyash Sharma,Abhinandan Singh,Rasikh Dar,Venkatesh Iyer,Jacob Duffy,Jordan Cox,Vicky Ostwal,Kanishk Chouhan,Yash Dayal,Nuwan Thushara"],
-["SRH","Sunrisers Hyderabad","#ff822a",4015,7,3,"Pat Cummins,Abhishek Sharma,Ishan Kishan,Heinrich Klaasen,Nitish Kumar Reddy,T Natarajan,Khaleel Ahmed,Nathan Ellis,Salil Arora,Eshan Malinga,Brydon Carse,Ravichandran Smaran,Aniket Verma,Harsh Dubey,Shivang Kumar,Krains Fuletra,Praful Hinge,Sakib Hussain"]];
+["CSK","Chennai Super Kings","#f9cd05",2805,6,2,"Ruturaj Gaikwad|B,Sanju Samson|K,Shivam Dube|A|L,Ayush Mhatre|B,Dewald Brevis|B|O,Urvil Patel|K,Kartik Sharma|K,Sarfaraz Khan|B,Noor Ahmad|P|OA,Rahul Chahar|P,Anshul Kamboj|P,Gurjapneet Singh|P|A,Mukesh Choudhary|P|A,Shreyas Gopal|P,Ramakrishna Ghosh|A,Akeal Hosein|P|OLA,Jamie Overton|A|O,Liam Livingstone|A|O,Jack Edwards|A|O"],
+["DC","Delhi Capitals","#1c5bd9",3950,9,4,"Axar Patel|A|LA,KL Rahul|K,Rishabh Pant|K|L,Prithvi Shaw|B,Sameer Rizvi|B,Ashutosh Sharma|B,Tristan Stubbs|B|O,David Miller|B|OL,Lungi Ngidi|P|O,Mukesh Kumar|P,Auqib Nabi|P,Vipraj Nigam|A,Madhav Tiwari|?,Tripurana Vijay|A,Kyle Jamieson|P|O,Zeeshan Ansari|P"],
+["GT","Gujarat Titans","#3a5fb0",875,3,2,"Shubman Gill|B,Sai Sudharsan|B|L,Jos Buttler|K|O,Glenn Phillips|A|O,Tom Banton|K|O,Kumar Kushagra|K,Anuj Rawat|K|L,Rahul Tewatia|A|L,Washington Sundar|A|L,Rashid Khan|P|O,R Sai Kishore|P|A,Manav Suthar|P|A,Jayant Yadav|A,Jason Holder|A|O,Kagiso Rabada|P|O,Mohammed Siraj|P,Prasidh Krishna|P,Gurnoor Brar|P,Ashok Sharma|P,Arshad Khan|A|LA,Nishant Sindhu|A|LA,Harshal Patel|P"],
+["KKR","Kolkata Knight Riders","#6b2fa0",4165,8,3,"Cameron Green|A|O,Sunil Narine|A|OL,Rinku Singh|B|L,Varun Chakravarthy|P,Harshit Rana|P,Finn Allen|B|O,Manish Pandey|B,Rovman Powell|B|O,Angkrish Raghuvanshi|B,Ramandeep Singh|A,Tim Seifert|K|O,Sarthak Ranjan|?,Anukul Roy|A|LA,Vaibhav Arora|P,Saurabh Dubey|P|A,Kartik Tyagi|P,Prashant Solanki|P"],
+["LSG","Lucknow Super Giants","#00a8a0",4745,7,3,"Nicholas Pooran|K|OL,Mitchell Marsh|A|O,Aiden Markram|B|O,Josh Inglis|K|O,Ayush Badoni|B,Abdul Samad|B,Mukul Choudhary|?,Akshat Raghuwanshi|?,Himmat Singh|B|L,Shahbaz Ahmed|A|LA,Digvesh Rathi|P,Prince Yadav|P,Mohsin Khan|P|A,Mayank Yadav|P,Akash Singh|P|A,Arjun Tendulkar|A|LA,Kuldeep Yadav|P|LA,Sam Curran|A|OLA"],
+["MI","Mumbai Indians","#0a64c8",3260,9,2,"Rohit Sharma|B,Suryakumar Yadav|B,Jasprit Bumrah|P,Tilak Varma|B|L,Arshdeep Singh|P|LA,Naman Dhir|B,Ryan Rickelton|K|OL,Sherfane Rutherford|B|OL,Quinton de Kock|K|OL,Corbin Bosch|A|O,Will Jacks|A|O,Shardul Thakur|A,Raj Angad Bawa|A|L,Mitchell Santner|A|OLA,Ashwani Kumar|P|A,Raghu Sharma|P"],
+["PBKS","Punjab Kings","#ef4444",1860,6,2,"Shreyas Iyer|B,Hardik Pandya|A,Priyansh Arya|B|L,Prabhsimran Singh|K,Shashank Singh|A,Musheer Khan|A,Vishnu Vinod|K,Cooper Connolly|A|OLA,Marcus Stoinis|A|O,Azmatullah Omarzai|A|O,Marco Jansen|A|OLA,Suryansh Shedge|A,Xavier Bartlett|P|O,Ben Dwarshuis|P|OA,Yash Thakur|P,Vijaykumar Vyshak|P,Yuzvendra Chahal|P,Harpreet Brar|A|LA,Harnoor Singh|B|L"],
+["RR","Rajasthan Royals","#e91e8c",2705,6,3,"Riyan Parag|A,Yashasvi Jaiswal|B|L,Vaibhav Sooryavanshi|B|L,Dhruv Jurel|K,Ravindra Jadeja|A|LA,Jofra Archer|P|O,Mohammed Shami|P,Manimaran Siddharth|P|A,Shubham Dubey|B|L,Aman Rao Perala|?,Lhuan-dre Pretorius|K|OL,Donovan Ferreira|B|O,Dasun Shanaka|A|O,Ravi Bishnoi|P,Yash Punja|?,Brijesh Sharma|P,Sandeep Sharma|P,Sushant Mishra|P|A,Nandre Burger|P|OA"],
+["RCB","Royal Challengers Bengaluru","#b3121b",1415,5,1,"Virat Kohli|B,Rajat Patidar|B,Phil Salt|K|O,Devdutt Padikkal|B|L,Jitesh Sharma|K,Tim David|B|O,Krunal Pandya|A|LA,Romario Shepherd|A|O,Josh Hazlewood|P|O,Bhuvneshwar Kumar|P,Suyash Sharma|P,Abhinandan Singh|P,Rasikh Dar|P,Venkatesh Iyer|A|L,Jacob Duffy|P|O,Jordan Cox|K|O,Vicky Ostwal|P|A,Kanishk Chouhan|?,Yash Dayal|P|A,Nuwan Thushara|P|O"],
+["SRH","Sunrisers Hyderabad","#ff822a",4015,7,3,"Pat Cummins|P|O,Abhishek Sharma|A|LA,Ishan Kishan|K|L,Heinrich Klaasen|K|O,Nitish Kumar Reddy|A,T Natarajan|P|A,Khaleel Ahmed|P|A,Nathan Ellis|P|O,Salil Arora|K|L,Eshan Malinga|P|OA,Brydon Carse|P|O,Ravichandran Smaran|B,Aniket Verma|B,Harsh Dubey|A|LA,Shivang Kumar|?,Krains Fuletra|?,Praful Hinge|P,Sakib Hussain|P"]];
 // Name|O(verseas)/I|Role B,K(wk),A,P|Tier S=2cr M=1cr U=0.3cr (roles & base prices are estimates)
 const POOL=`Daniel Lawrence|ENG|B|200|U26
 Jake Fraser-McGurk|AUS|B|200|U26
@@ -508,6 +509,7 @@ const A={
   await db.doc("players/"+l.pid).update({st:"pool",tm:null,pr:0,ord:Math.min(...ords())-1});
   await db.doc("log/"+l.id).update({un:true});await lg({k:"undo",t:"UNDO: "+p.n+" returned to pool, "+cr(l.pr)+" refunded to "+l.tm})},
  reload,restart,pick,
+ async sold(){if(S.ph!=="live")return note("No player on the block");if(!S.bt)return note("No bids yet, so nothing to sell. Use Skip or let the clock run out");await settle()},
  async add(){const n=$("#an").value.trim();if(!n)return;
   await db.doc("players/p"+Date.now()).set({n,o:$("#ao").value==="O",r:$("#ar").value,b:+$("#ab").value,ord:Math.max(...ords())+1,st:"pool",tm:null,pr:0});
   await lg({k:"add",t:"Added to pool: "+n});$("#an").value=""}};
@@ -532,7 +534,7 @@ function render(){
  if($("#lv"))$("#lv").onclick=()=>db.doc("claims/"+me).delete();
  if($("#ib"))$("#ib").onclick=init;if($("#bb"))$("#bb").onclick=bid;
  document.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>db.doc("claims/"+me).set({tm:b.dataset.t}));
- $("#teams").innerHTML=Object.entries(TM).map(([id,t])=>{const bt=(t.bought||[]);return`<details class=t style="--k:${t.c}" data-d="${id}" ${OPEN.has(id)?"open":""}><summary><b>${id}</b> · ${cr(t.pu)} · ${t.sl} slots · ${t.os} OS</summary><div class=mu><b>Bought:</b> ${bt.length?bt.map(b=>e(b.n)+" "+cr(b.pr)).join(", "):"—"}<br><b>Retained:</b> ${e(t.sq)}</div></details>`}).join("");
+ $("#teams").innerHTML=Object.entries(TM).map(([id,t])=>{const bt=(t.bought||[]);return`<details class=t style="--k:${t.c}" data-d="${id}" ${OPEN.has(id)?"open":""}><summary><b>${id}</b> · ${cr(t.pu)} · ${t.sl} slots · ${t.os} OS</summary><div class=mu><b>Bought:</b> ${bt.length?bt.map(b=>e(b.n)+" "+cr(b.pr)).join(", "):"—"}</div><div style="margin-top:6px"><b class=mu>RETAINED</b>${squad(id)}</div></details>`}).join("");
  document.querySelectorAll("[data-d]").forEach(d=>d.ontoggle=()=>d.open?OPEN.add(d.dataset.d):OPEN.delete(d.dataset.d));
  $("#log").innerHTML=LG.slice(0,25).map(l=>`<div class="lg ${l.un?"un":""}">${e(l.t)}</div>`).join("")||"<span class=mu>Nothing yet</span>";
  const pl=Object.values(P).sort((a,b)=>a.ord-b.ord),row=p=>`<div class=lg>${p.o?"✈":"🇮🇳"} ${e(p.n)} <span class=mu>${p.c||""} · ${ROLE[p.r]}${p.src?" · "+p.src:""} · ${cr(p.b)}${p.st==="sold"?" · SOLD "+p.tm+" "+cr(p.pr):p.st==="unsold"?" · unsold":""}</span></div>`,
@@ -540,13 +542,18 @@ function render(){
  $("#pool").innerHTML=grp("Up next",p=>p.st==="pool")+grp("Sold",p=>p.st==="sold")+grp("Unsold",p=>p.st==="unsold");
  document.querySelectorAll("#pool [data-d]").forEach(d=>d.ontoggle=()=>d.open?OPEN.add(d.dataset.d):OPEN.delete(d.dataset.d));
  tick()}
+const RS=Object.fromEntries(TEAMS.map(t=>[t[0],t[6]])),GN={B:"Batters",A:"All-rounders",P:"Bowlers","?":"Role not set"};
+function squad(id){const g={B:[],A:[],P:[],"?":[]};
+ (RS[id]||"").split(",").forEach(s=>{const[n,r,f=""]=s.split("|"),k=r==="K"?"B":(g[r]?r:"?");
+  g[k].push((r==="K"?"🧤":"")+e(n)+(f.includes("O")?" ✈":"")+(f.includes("L")?" <b class=ic title='Left-hand batter'>🏏L</b>":"")+(f.includes("A")?" <b class=ic title='Left-arm bowler'>⚾L</b>":""))});
+ return Object.entries(g).filter(([,a])=>a.length).map(([k,a])=>`<div><b>${GN[k]} (${a.length})</b></div><div class=sq>${a.map(x=>`<span>${x}</span>`).join("")}</div>`).join("")}
 function renderAdm(){const a=$("#adm");if(a.dataset.r)return;a.dataset.r=1;
- a.innerHTML=`<h3>Auctioneer controls</h3><div class=chips><button id=a1>▶ Start / Resume</button><button id=a2>⏸ Pause</button><button id=a3>⏭ Skip player</button><button id=a4>↩ Undo last sale</button><button id=a6>🔄 Reload pool</button><button id=a7>♻ Restart auction</button></div>
+ a.innerHTML=`<h3>Auctioneer controls</h3><div class=chips><button id=a1>▶ Start / Resume</button><button id=a2>⏸ Pause</button><button id=a9>🔨 Sold now</button><button id=a3>⏭ Skip player</button><button id=a4>↩ Undo last sale</button><button id=a6>🔄 Reload pool</button><button id=a7>♻ Restart auction</button></div>
  <details style="margin-top:8px"><summary>🎯 Pick a player to auction now</summary><input id=sq placeholder="Search player name"><div id=pk class=chips></div><div id=psel class=mu></div><button id=a8 class=p style="font-size:15px">Auction selected player now</button></details>
  <details style="margin-top:8px"><summary>Release a team claim</summary><div id=rl class=chips style="margin-top:6px"></div></details>
  <details style="margin-top:8px"><summary>Add player to pool</summary><input id=an placeholder="Player name"><select id=ao><option value=I>Indian</option><option value=O>Overseas</option></select><select id=ar><option value=B>Batter</option><option value=K>Keeper</option><option value=A>All-rounder</option><option value=P>Bowler</option></select><select id=ab><option value=30>Base ₹0.3 cr</option><option value=100>Base ₹1 cr</option><option value=200>Base ₹2 cr</option></select><button id=a5 class=p style="font-size:15px">Add to end of queue</button></details>
  <div class=mu style="margin-top:6px">Keep this tab open: it runs the clock and settles sales.</div>`;
- [["a1","start"],["a2","pause"],["a3","skip"],["a4","undo"],["a5","add"],["a6","reload"],["a7","restart"],["a8","pick"]].forEach(([i,f])=>$("#"+i).onclick=()=>S&&A[f]());$("#sq").oninput=fillPick}
+ [["a1","start"],["a2","pause"],["a3","skip"],["a4","undo"],["a5","add"],["a6","reload"],["a7","restart"],["a8","pick"],["a9","sold"]].forEach(([i,f])=>$("#"+i).onclick=()=>S&&A[f]());$("#sq").oninput=fillPick}
 const sha=async s=>[...new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode("ipl27:"+s)))].map(x=>x.toString(16).padStart(2,"0")).join("");
 function note(m){const n=$("#nt");n.textContent=m;n.hidden=false;clearTimeout(note.t);note.t=setTimeout(()=>n.hidden=true,3500)}
 function setAdm(){adm=own||(!!PINH&&SV===PINH);lease();render()}
