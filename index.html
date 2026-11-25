@@ -35,7 +35,7 @@ details summary{cursor:pointer}input,select{font:inherit;padding:8px;border-radi
 <div id="top" class="c"></div>
 <div id="adm" class="c" hidden></div>
 <div class="c"><h3>Teams · purse · slots</h3><div class="mu" style="margin-bottom:6px">✈ overseas · 🏏L left-hand bat · ⚾L left-arm bowler · 🧤 keeper</div><div id="teams"></div></div>
-<div id="mst" class="c"><h3>🔐 Host access</h3><div id="mm" class="mu">Checking registered host access…</div></div>
+<div id="mst" class="c"><h3>🔑 Master mode</h3><div id="mst1"><input id="pn" type="password" inputmode="numeric" placeholder="Master PIN"><button id="pu">Unlock</button></div><div id="mst2" hidden><div class="mu">Master controls unlocked</div><input id="np" type="password" inputmode="numeric" placeholder="New PIN (4–8 digits)"><button id="ps">Set / change PIN</button><button id="lk">Lock this device</button></div><div id="mm" class="mu"></div></div>
 <div class="c"><h3>Live log</h3><div id="log"></div></div>
 </div>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -427,7 +427,7 @@ const MARQUEE_NAMES=new Set(["Jake Fraser-McGurk","Shimron Hetmyer","Steve Smith
 const ROLE={B:"Batter",K:"Keeper",A:"All-rounder",P:"Bowler",T:"Role TBC"}, RSHORT={B:"Batters",K:"Keepers",A:"All-rounders",P:"Bowlers",T:"Role TBC"};
 const $=s=>document.querySelector(s), e=s=>String(s).replace(/[&<>"]/g,c=>"&#"+c.charCodeAt(0)+";");
 const cr=l=>"₹"+(+(l/100).toFixed(2))+" cr", inc=l=>l<100?10:l<200?20:l<500?25:50;
-let fs,me,ADM=false,eng=false,rc=0,rc2=0,PK="",SELSET="",S=null,P={},CHUNKS={},TM={},CL={},BD={},busy=false,bidTimer=null,poolOpen=false,poolLoading=false,bidUn=null,lastBid="",lastBidT=0,rqf=0;
+let fs,me,ADM=false,eng=false,META=null,rc=0,rc2=0,PK="",SELSET="",S=null,P={},CHUNKS={},TM={},CL={},BD={},busy=false,bidTimer=null,poolOpen=false,poolLoading=false,bidUn=null,lastBid="",lastBidT=0,rqf=0;
 let TAB=sessionStorage.getItem("tab");if(!TAB){TAB=Math.random().toString(36).slice(2);sessionStorage.setItem("tab",TAB)}
 const OPEN=new Set();
 let TR={a:"CSK",b:"DC",sa:new Set(),sb:new Set(),dir:"ab",val:""};
@@ -709,13 +709,20 @@ function renderAdm(){const a=$("#adm");if(a.dataset.r)return;a.dataset.r=1;
  [["a1","start"],["a2","pause"],["a3","skip"],["a4","undo"],["a5","add"],["a6","reload"],["a7","restart"],["a8","pick"],["a9","sold"],["a10","takeover"]].forEach(([i,f])=>$("#"+i).onclick=()=>S&&A[f]());
  $("#apool").onclick=async()=>{await A.togglePool();$("#apool").textContent=poolOpen?"🙈 Hide live player pool":"📋 Show live player pool"};
  $("#sq").oninput=async()=>{await ensurePoolLoaded();fillPick()}}
+const sha=async s=>[...new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode("ipl27:"+s)))].map(x=>x.toString(16).padStart(2,"0")).join("");
 function note(m){const n=$("#nt");n.textContent=m;n.hidden=false;clearTimeout(note.t);note.t=setTimeout(()=>n.hidden=true,3500)}
+async function unlock(){const v=$("#pn").value.trim();if(!/^\d{4,8}$/.test(v))return note("PIN must be 4 to 8 digits");const h=await sha(v);
+ try{if(!META){await D("cfg/pin").set({h});await D("admins/"+me).set({h});await D("cfg/meta").set({pinSet:true});note("Host PIN set. You are the host")}else{await D("admins/"+me).set({h});note("Unlocked")}}
+ catch(x){note(META?"Wrong PIN":"Could not set PIN ("+x.code+")")}$("#pn").value=""}
+async function setPin(){const v=$("#np").value.trim();if(!/^\d{4,8}$/.test(v))return note("PIN must be 4 to 8 digits");const h=await sha(v);
+ try{await D("cfg/pin").set({h});await D("admins/"+me).set({h});note("PIN saved")}catch(x){note("Failed ("+x.code+")")}$("#np").value=""}
 function tick(){if(!S)return;const n=Date.now(),c=$("#clk");
  if(c){const w=pre()?S.start-n:S.ph==="paused"?S.left:S.end-n,s=Math.max(0,Math.ceil(w/1000));c.textContent=(pre()?"next in ":"")+s+"s";c.className=s<=10&&!pre()?"low":""}
  if(eng&&!busy&&live()&&!pre()&&n>=S.end)expire()}
 function render(){
-$("#msg").hidden=true;$("#app").hidden=false;$("#adm").hidden=!ADM;
-$("#mm").textContent=ADM?(eng?"✓ Registered host device · this device runs the auction clock":"✓ Registered host device · another tab/device currently holds the auction clock"):"This device is not registered as the host. Host controls are available only on the browser whose anonymous Firebase UID was added to Firestore admins.";
+$("#msg").hidden=true;$("#app").hidden=false;$("#adm").hidden=!ADM;$("#mst1").hidden=ADM;$("#mst2").hidden=!ADM;
+$("#mm").textContent=ADM?(eng?"This device runs the clock":"Another master device runs the clock (tap Take over clock if it stopped)"):(META?"":"No host PIN yet: the first person to set one becomes the host. Host, do this before sharing the link.");
+$("#pu").textContent=META?"Unlock":"Set host PIN";
 if(ADM){renderAdm();fillSets();fillPick();fillRel();fillTrade();fillPoolView()}
 const my=mine(),cnt=S&&S.counts;let h="";
 const sum=cnt?`<div class=pill-row><span class=pill>Pool left: ${cnt.pool}</span><span class=pill>Sold: ${cnt.sold}</span><span class=pill>Unsold: ${cnt.unsold}</span></div>`:"";
@@ -746,7 +753,9 @@ tick()}
  D("cfg/state").onSnapshot(s=>{S=s.exists&&s.data().v===2?s.data():null;rq();queueBids()},er);
  fs.collection("teams").onSnapshot(q=>{TM={};q.forEach(x=>TM[x.id]=x.data());rq()},er);
  fs.collection("claims").onSnapshot(q=>{CL={};q.forEach(x=>{if(TEAMS.some(t=>t[0]===x.id))CL[x.id]=x.data()});rq()},er);
+ D("cfg/meta").onSnapshot(s=>{META=s.exists?s.data():null;rq()},er);
  D("admins/"+me).onSnapshot(s=>{ADM=s.exists;lease();rq()},er);
+ $("#pu").onclick=unlock;$("#ps").onclick=setPin;$("#lk").onclick=()=>D("admins/"+me).delete();
  setInterval(tick,500);setInterval(()=>lease(),20000)})();
 </script>
 </body>
