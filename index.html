@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Badlionzzz IPL 2027 Mock Auction</title>
+<title>IPL 2027 Mock Auction</title>
 <!-- Standalone build: Firebase Firestore + anonymous auth. Host = whoever sets the master PIN first. -->
 <style>
 :root{--bg:#f4f6fb;--cd:#fff;--tx:#141a2a;--mu:#5d6781;--ln:#dde2ee;--ac:#e8890c;--ok:#1a9e55;--bad:#d93636;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -451,6 +451,7 @@ const $=s=>document.querySelector(s), e=s=>String(s).replace(/[&<>"]/g,c=>"&#"+c
 const cr=l=>"₹"+(+(l/100).toFixed(2))+" cr", inc=l=>l<100?10:l<200?20:l<500?25:50;
 const pickRand=arr=>arr[Math.floor(Math.random()*arr.length)];
 let db,me,adm=false,own=false,eng=false,PINH="",SV="",rc=0,rc2=0,PK="",SELSET="",TAB=Math.random().toString(36).slice(2),S=null,P={},CHUNKS={},TM={},CL={},BD={},LG=[],busy=false,bidTimer=null,poolOpen=false,poolLoading=false;
+const OPEN=new Set();
 let TR={a:"CSK",b:"DC",sa:new Set(),sb:new Set(),dir:"ab",val:""};
 
 function chk(tm,p,amt){const t=TM[tm];if(!t)return"No team";if(S&&S.bt===tm)return"You lead";if(t.sl<=0)return"Squad full";
@@ -635,14 +636,15 @@ async function init(){
 }
 async function restart(){
  if(!rc2){rc2=1;setTimeout(()=>rc2=0,4000);return note("Tap Restart again to wipe all results and start over")}rc2=0;
- await setS({ph:"idle",pid:null,curPlayer:null,curSet:"Marquee Set",counts:{pool:0,sold:0,unsold:0},bid:0,bt:null,end:0,left:0,nb:0,until:0,rid:Date.now()});
+ const rid=Date.now();
+ await setS({ph:"idle",pid:null,curPlayer:null,curSet:"Marquee Set",counts:{pool:0,sold:0,unsold:0},bid:0,bt:null,end:0,left:0,nb:0,until:0,rid});
  await par(LG.map(l=>l.id),id=>db.doc("log/"+id).delete());
  await par(Object.keys(BD),id=>db.doc("bids/"+id).delete().catch(()=>{}));
  const b=db.batch();
  TEAMS.forEach(([id,n,c,pu,sl,os,sq])=>b.set("teams/"+id,{n,c,pu,sl,os,sq,bought:[]}));
  await b.commit();
  const counts=await loadPlayers();
- await setS({ph:"idle",pid:null,curPlayer:null,curSet:"Marquee Set",counts,bid:0,bt:null,end:0,left:0,nb:0,until:0,rid:S.rid||0});
+ await setS({ph:"idle",pid:null,curPlayer:null,curSet:"Marquee Set",counts,bid:0,bt:null,end:0,left:0,nb:0,until:0,rid});
  note("Auction restarted · Marquee Set first")
 }
 async function pickPlayer(id){
@@ -856,6 +858,7 @@ const A={
    await db.doc("log/"+l.id).update({un:true});
    await lg({k:"undo",t:"UNDO "+l.t});
    return note("Trade reverted")}
+  await ensurePoolLoaded();
   const p=P[l.pid],t=TM[l.tm];
   await db.doc("teams/"+l.tm).update({pu:t.pu+l.pr,sl:t.sl+1,os:t.os+(p&&p.o?1:0),bought:(t.bought||[]).filter(b=>b.id!==l.pid)});
   await updatePlayer(l.pid,{st:"pool",tm:null,pr:0});
@@ -887,7 +890,7 @@ function render(){
   else if(p){const lead=S.bt?TM[S.bt]:null,n=need(),er=my?chk(my,p,n):"Claim a team below";
    h=`<div class=row><div>${p.set?`<div class=badge>📚 ${e(p.set)}</div>`:""}<div class=mu>${S.ph==="paused"?"⏸ PAUSED":"ON THE BLOCK"} · ${p.o?"✈ Overseas":"🇮🇳 Indian"} · ${ROLE[p.r]}</div><div class=big>${e(p.n)}</div><div class=mu>Base ${cr(p.b)}</div></div><div id=clk></div></div>
    <div class=t style="--k:${lead?lead.c:"var(--ln)"}"><div class=mu>${lead?"Highest bid":"No bids yet"}</div><div class=big>${S.bt?cr(S.bid)+" · "+S.bt:"—"}</div></div>
-   <button id=bb class=p ${er||S.ph!=="live"?"disabled":""}>${my?(er&&S.ph==="live"?e(er):"BID "+cr(n)+" as "+my):"Pick your team below"}</button>`+summaryHtml}
+   <button id=bb class=p ${er||S.ph!=="live"?"disabled":""}>${my?(er&&S.ph==="live"?e(er):"BID "+cr(n)+" as "+my):"Pick your team below"}</button>`+summaryHtml}}
  const chips=`<div class=chips>${TEAMS.map(([id,,c])=>{const k=Object.values(CL).some(x=>x.tm===id);return`<button class=chip data-t="${id}" style="--k:${c}" ${k?"disabled":""}>${id}${k?" ✓":""}</button>`}).join("")}</div>`;
  if(!my)h+=adm?`<details data-d="claim" ${OPEN.has("claim")?"open":""} style="margin-top:10px"><summary class=mu>Play as a team (optional)</summary>${chips}</details>`:`<h3 style="margin-top:12px">Claim your team</h3>`+chips;
  else h+=`<div class=row style="margin-top:8px"><span class=mu>You are ${my}</span><button id=lv>Leave team</button></div>`;
