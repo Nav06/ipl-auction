@@ -21,6 +21,7 @@ details summary{cursor:pointer}input,select{font:inherit;padding:8px;border-radi
 .sq{display:flex;flex-wrap:wrap;gap:3px 10px;margin:2px 0 6px}.sq span{white-space:nowrap}.ic{font-size:10px;border:1px solid var(--ln);border-radius:6px;padding:0 3px;font-weight:600}
 .lg{font-size:13px;padding:3px 0;border-bottom:1px solid var(--ln)}.un{text-decoration:line-through;opacity:.5}
 .badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;background:var(--ln);color:var(--tx);margin-bottom:4px}
+.pill-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.pill{font-size:12px;background:var(--bg);border:1px solid var(--ln);border-radius:999px;padding:3px 9px;font-weight:600}
 .tr-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
 .tr-box{background:var(--bg);border:1px solid var(--ln);border-radius:8px;padding:6px;max-height:170px;overflow-y:auto}
 .tr-item{display:flex;align-items:center;gap:6px;font-size:13px;padding:3px 0;cursor:pointer}
@@ -35,7 +36,6 @@ details summary{cursor:pointer}input,select{font:inherit;padding:8px;border-radi
 <div id="top" class="c"></div>
 <div id="adm" class="c" hidden></div>
 <div class="c"><h3>Teams · purse · slots</h3><div class="mu" style="margin-bottom:6px">✈ overseas · 🏏L left-hand bat · ⚾L left-arm bowler · 🧤 keeper</div><div id="teams"></div></div>
-<div class="c"><h3>Player pool</h3><div id="pool"></div></div>
 <div id="mst" class="c"><h3>🔑 Master mode</h3><div id="mst1"><input id="pn" type="password" inputmode="numeric" placeholder="Master PIN"><button id="pu">Unlock</button></div><div id="mst2" hidden><div class="mu">Master controls unlocked</div><input id="np" type="password" inputmode="numeric" placeholder="New PIN (4–8 digits)"><button id="ps">Set / change PIN</button></div><div id="mm" class="mu"></div></div>
 <div class="c"><h3>Live log</h3><div id="log"></div></div>
 </div>
@@ -58,7 +58,8 @@ if(!window.claude){let fsP;
   const R=p=>fs.doc(p);
   return{doc:p=>({onSnapshot:f=>R(p).onSnapshot(f,e=>console.error(p,e)),get:()=>R(p).get(),set:d=>R(p).set(d),update:d=>R(p).update(d),delete:()=>R(p).delete(),
    acquire:({holder,ttlMs})=>fs.runTransaction(async t=>{const s=await t.get(R(p)),l=s.exists?s.data():null,now=Date.now();if(l&&l.holder!==holder&&l.exp>now)return{acquired:false};t.set(R(p),{holder,exp:now+ttlMs});return{acquired:true}})}),
-   collection:c=>({onSnapshot:(f,opts)=>{let q=fs.collection(c);if(opts&&opts.orderBy)q=q.orderBy(opts.orderBy,opts.dir||"desc");if(opts&&opts.limit)q=q.limit(opts.limit);return q.onSnapshot(f,e=>console.error(c,e))},add:d=>fs.collection(c).add(d)}),
+   collection:c=>({get:opts=>{let q=fs.collection(c);if(opts&&opts.orderBy)q=q.orderBy(opts.orderBy,opts.dir||"desc");if(opts&&opts.limit)q=q.limit(opts.limit);return q.get()},
+    onSnapshot:(f,opts)=>{let q=fs.collection(c);if(opts&&opts.orderBy)q=q.orderBy(opts.orderBy,opts.dir||"desc");if(opts&&opts.limit)q=q.limit(opts.limit);return q.onSnapshot(f,e=>console.error(c,e))},add:d=>fs.collection(c).add(d)}),
    batch:()=>{const b=fs.batch();return{set:(p,d)=>b.set(R(p),d),delete:p=>b.delete(R(p)),commit:()=>b.commit()}}}}}}
 </script>
 <script>
@@ -440,23 +441,36 @@ Waseem Khanday|IND|T|30|U26
 Yash Dicholkar|IND|T|30|U26
 Yashbardhan Chauhan|IND|T|30|U19
 Yashveer Goud|IND|T|30|U19`;
-const BASE={S:200,M:100,U:30}, ROLE={B:"Batter",K:"Keeper",A:"All-rounder",P:"Bowler",T:"Role TBC"}, RSHORT={B:"Batters",K:"Keepers",A:"All-rounders",P:"Bowlers",T:"Role TBC"};
+const MARQUEE_NAMES=new Set([
+ "Jake Fraser-McGurk","Shimron Hetmyer","Steve Smith","Daryl Mitchell","Jacob Bethell",
+ "Rachin Ravindra","Wanindu Hasaranga","Ben Duckett","Devon Conway","Jamie Smith",
+ "Matheesha Pathirana","Matt Henry","Trent Boult","Mark Wood"
+]);
+const ROLE={B:"Batter",K:"Keeper",A:"All-rounder",P:"Bowler",T:"Role TBC"}, RSHORT={B:"Batters",K:"Keepers",A:"All-rounders",P:"Bowlers",T:"Role TBC"};
 const $=s=>document.querySelector(s), e=s=>String(s).replace(/[&<>"]/g,c=>"&#"+c.charCodeAt(0)+";");
 const cr=l=>"₹"+(+(l/100).toFixed(2))+" cr", inc=l=>l<100?10:l<200?20:l<500?25:50;
-let db,me,adm=false,own=false,eng=false,PINH="",SV="",rc=0,rc2=0,PK="",SELSET="",TAB=Math.random().toString(36).slice(2),S=null,P={},CHUNKS={},TM={},CL={},BD={},LG=[],busy=false,bidTimer=null;const OPEN=new Set(["pool-Up next"]);
+const pickRand=arr=>arr[Math.floor(Math.random()*arr.length)];
+let db,me,adm=false,own=false,eng=false,PINH="",SV="",rc=0,rc2=0,PK="",SELSET="",TAB=Math.random().toString(36).slice(2),S=null,P={},CHUNKS={},TM={},CL={},BD={},LG=[],busy=false,bidTimer=null,poolOpen=false,poolLoading=false;
 let TR={a:"CSK",b:"DC",sa:new Set(),sb:new Set(),dir:"ab",val:""};
 
 function chk(tm,p,amt){const t=TM[tm];if(!t)return"No team";if(S&&S.bt===tm)return"You lead";if(t.sl<=0)return"Squad full";
  if(p.o&&t.os<=0)return"No overseas slot";if(amt>t.pu-(t.sl-1)*MINB)return"Not enough purse";return""}
-const need=()=>S.bt?S.bid+inc(S.bid):P[S.pid].b;
+const need=()=>S.bt?S.bid+inc(S.bid):(S.curPlayer?S.curPlayer.b:(P[S.pid]&&P[S.pid].b)||30);
+const activePlayer=()=>(S&&S.curPlayer)||P[S.pid]||null;
+function calcCounts(obj){
+ let poolCnt=0,soldCnt=0,unsoldCnt=0;
+ Object.values(obj||{}).forEach(p=>{if(p.st==="sold")soldCnt++;else if(p.st==="unsold")unsoldCnt++;else poolCnt++});
+ return{pool:poolCnt,sold:soldCnt,unsold:unsoldCnt};
+}
 const setS=async o=>{S=o;await db.doc("cfg/state").set(o)};
 const lg=o=>db.collection("log").add({...o,ts:Date.now()});
-const pool=()=>Object.entries(P).filter(([,p])=>p.st==="pool").sort((a,b)=>a[1].ord-b[1].ord);
-const ords=()=>Object.values(P).map(p=>p.ord);
+const pool=(setName)=>Object.entries(P).filter(([,p])=>p.st==="pool"&&(!setName||p.set===setName));
 
-/* ===== Classic IPL Set Builder (10-20 players per set, role & base price progression) ===== */
+/* ===== Marquee First + Classic IPL Sets (10-20 players per set) ===== */
 function buildPoolWithSets(){
- const raw=POOL.split("\n").map((l,i)=>{const[n,c,r,b,src]=l.split("|");return{id:"P"+String(i+1).padStart(3,"0"),n,c,o:c!=="IND",r,b:+b,src,st:"pool",tm:null,pr:0}});
+ const all=POOL.split("\n").map((l,i)=>{const[n,c,r,b,src]=l.split("|");return{id:"P"+String(i+1).padStart(3,"0"),n,c,o:c!=="IND",r,b:+b,src,st:"pool",tm:null,pr:0}});
+ const marqueeItems=all.filter(p=>MARQUEE_NAMES.has(p.n));
+ const remaining=all.filter(p=>!MARQUEE_NAMES.has(p.n));
  const tiers=[
   {label:"₹2 Cr",fn:p=>p.b>=200},
   {label:"₹1–1.5 Cr",fn:p=>p.b>=100&&p.b<200},
@@ -467,11 +481,10 @@ function buildPoolWithSets(){
  const buckets=[];
  tiers.forEach(t=>{
   roleOrder.forEach(r=>{
-   const items=raw.filter(p=>t.fn(p)&&p.r===r).sort((a,b)=>b.b-a.b||a.n.localeCompare(b.n));
+   const items=remaining.filter(p=>t.fn(p)&&p.r===r).sort((a,b)=>b.b-a.b||a.n.localeCompare(b.n));
    if(items.length)buckets.push({tier:t.label,roles:[r],items});
   });
  });
- // Merge adjacent buckets under 10 players (prefer same price tier first)
  const merged=[];
  let cur=null;
  for(const b of buckets){
@@ -493,8 +506,7 @@ function buildPoolWithSets(){
    prev.items.push(...cur.items);
   }else merged.push(cur);
  }
- // Split any bucket > 20 into balanced chunks of 10-20
- const finalSets=[];
+ const finalSets=[{name:"Marquee Set",items:marqueeItems}];
  merged.forEach(b=>{
   const rLabel=b.roles.map(r=>RSHORT[r]||r).join(" & ");
   const baseName=`${b.tier} · ${rLabel}`;
@@ -520,7 +532,17 @@ function buildPoolWithSets(){
  return out;
 }
 
-/* ===== Chunked Pool Persistence (2 docs instead of 250 docs -> 99% fewer reads) ===== */
+/* ===== Chunked Pool Storage (2 docs; fetched on-demand by auctioneer) ===== */
+async function ensurePoolLoaded(){
+ if(Object.keys(P).length)return P;
+ poolLoading=true;render();
+ try{
+  const q=await db.collection("pool").get();
+  CHUNKS={};P={};
+  q.docs.forEach(x=>{const m=(x.data()&&x.data().map)||{};CHUNKS[x.id]=m;Object.assign(P,m)});
+  return P;
+ }finally{poolLoading=false;render()}
+}
 async function savePoolAll(obj){
  P=obj;
  const ids=Object.keys(obj).sort();
@@ -538,6 +560,7 @@ async function savePoolAll(obj){
  await b.commit();
 }
 async function updatePlayer(id,patch){
+ await ensurePoolLoaded();
  if(!P[id])return;
  P[id]={...P[id],...patch};
  const ids=Object.keys(P).sort();
@@ -546,6 +569,7 @@ async function updatePlayer(id,patch){
  await db.doc("pool/"+cid).update({["map."+id]:P[id]});
 }
 async function updatePlayersBatch(patches){
+ await ensurePoolLoaded();
  const cids=new Set();
  const ids=Object.keys(P).sort();
  Object.entries(patches).forEach(([id,patch])=>{
@@ -586,7 +610,7 @@ function evalTrade(){
  const newPuA=tA.pu+dPurseA;
  const newPuB=tB.pu+dPurseB;
  let err="";
- if(S.ph!=="paused")err="Pause the auction first to execute trades";
+ if(!S||S.ph!=="paused")err="Pause the auction first to execute trades";
  else if(newSlA<0)err=TR.a+" exceeds squad slot limit ("+newSlA+" slots left)";
  else if(newSlB<0)err=TR.b+" exceeds squad slot limit ("+newSlB+" slots left)";
  else if(newOsA<0)err=TR.a+" exceeds overseas limit ("+newOsA+" OS slots left)";
@@ -596,59 +620,71 @@ function evalTrade(){
  return{err,tA,tB,sendA,sendB,val,dPurseA,dPurseB,newSlA,newSlB,newOsA,newOsB,newPuA,newPuB}}
 
 const par=async(a,f,n=10)=>{for(let i=0;i<a.length;i+=n)await Promise.all(a.slice(i,i+n).map((x,j)=>f(x,i+j)))};
-const loadPlayers=()=>savePoolAll(buildPoolWithSets());
+async function loadPlayers(){
+ const built=buildPoolWithSets();
+ await savePoolAll(built);
+ return calcCounts(built);
+}
 async function init(){
- $("#ib").disabled=true;await loadPlayers();
+ $("#ib").disabled=true;
+ const counts=await loadPlayers();
  const b=db.batch();
  TEAMS.forEach(([id,n,c,pu,sl,os,sq])=>b.set("teams/"+id,{n,c,pu,sl,os,sq,bought:[]}));
  await b.commit();
- await setS({ph:"idle",pid:null,bid:0,bt:null,end:0,left:0,nb:0,until:0});
+ await setS({ph:"idle",pid:null,curPlayer:null,curSet:"Marquee Set",counts,bid:0,bt:null,end:0,left:0,nb:0,until:0});
 }
 async function restart(){
  if(!rc2){rc2=1;setTimeout(()=>rc2=0,4000);return note("Tap Restart again to wipe all results and start over")}rc2=0;
- await setS({ph:"idle",pid:null,bid:0,bt:null,end:0,left:0,nb:0,until:0,rid:Date.now()});
+ await setS({ph:"idle",pid:null,curPlayer:null,curSet:"Marquee Set",counts:{pool:0,sold:0,unsold:0},bid:0,bt:null,end:0,left:0,nb:0,until:0,rid:Date.now()});
  await par(LG.map(l=>l.id),id=>db.doc("log/"+id).delete());
  await par(Object.keys(BD),id=>db.doc("bids/"+id).delete().catch(()=>{}));
  const b=db.batch();
  TEAMS.forEach(([id,n,c,pu,sl,os,sq])=>b.set("teams/"+id,{n,c,pu,sl,os,sq,bought:[]}));
  await b.commit();
- await loadPlayers();note("Auction restarted with IPL skill sets")}
-async function pick(customId){const id=customId||PK,p=P[id];
- if(!p)return note("Select a player first");
+ const counts=await loadPlayers();
+ await setS({ph:"idle",pid:null,curPlayer:null,curSet:"Marquee Set",counts,bid:0,bt:null,end:0,left:0,nb:0,until:0,rid:S.rid||0});
+ note("Auction restarted · Marquee Set first")
+}
+async function pickPlayer(id){
+ await ensurePoolLoaded();
+ const p=P[id];
+ if(!p)return note("Player not found");
  if(p.st==="sold")return note("That player is already sold");
  if(S.ph==="live"&&S.bt)return note("Current player has a bid, let the hammer fall first");
  if(p.st!=="pool")await updatePlayer(id,{st:"pool"});
- await setS({ph:"live",pid:id,bid:0,bt:null,end:Date.now()+CLK*1000,left:0,nb:0,until:0,rid:S.rid||0});
- await lg({k:"pick",t:"Auctioneer put "+p.n+" ("+(p.set||"Pool")+") on the block"})}
+ const counts=calcCounts(P);
+ await setS({...S,ph:"live",pid:id,curPlayer:{id,n:p.n,c:p.c,o:p.o,r:p.r,b:p.b,set:p.set},curSet:p.set||S.curSet||"Marquee Set",counts,bid:0,bt:null,end:Date.now()+CLK*1000,left:0,nb:0,until:0});
+ await lg({k:"pick",t:"Auctioneer put "+p.n+" ("+(p.set||"Pool")+") on the block"})
+}
 function getSetsSummary(){
  const map=new Map();
  Object.entries(P).sort((a,b)=>a[1].ord-b[1].ord).forEach(([id,p])=>{
   const s=p.set||"General Pool";
-  if(!map.has(s))map.set(s,{name:s,total:0,pool:[],sold:0,unsold:0});
+  if(!map.has(s))map.set(s,{name:s,total:0,pool:[],unsold:0,sold:0});
   const g=map.get(s);g.total++;
   if(p.st==="pool")g.pool.push([id,p]);
+  else if(p.st==="unsold")g.unsold++;
   else if(p.st==="sold")g.sold++;
-  else g.unsold++;
  });
  return[...map.values()];
 }
 function fillSets(){
  const box=$("#setbox");if(!box)return;
+ if(!Object.keys(P).length){box.innerHTML="<span class=mu>Open 'Show live player pool' or start a set to load set stats</span>";return}
  const sets=getSetsSummary();
  if(!sets.length){box.innerHTML="<span class=mu>No sets loaded</span>";return}
- const activeSet=(S&&S.pid&&P[S.pid]&&P[S.pid].set)||sets.find(s=>s.pool.length)?.name||sets[0].name;
+ const activeSet=(S&&S.curSet)||sets[0].name;
  if(!SELSET||!sets.some(s=>s.name===SELSET))SELSET=activeSet;
  const cur=sets.find(s=>s.name===SELSET)||sets[0];
  box.innerHTML=`
-  <div class=mu style="margin:4px 0">Current active set: <b>${e(activeSet)}</b></div>
-  <select id=setsel>${sets.map(s=>`<option value="${e(s.name)}" ${s.name===SELSET?"selected":""}>${e(s.name)} (${s.pool.length} left / ${s.total})</option>`).join("")}</select>
-  <div class=mu style="margin:4px 0">${cur.pool.length?`Next in set: <b>${e(cur.pool[0][1].n)}</b> (${cr(cur.pool[0][1].b)}) · ${cur.sold} sold, ${cur.unsold} unsold`:"All players in this set have been auctioned"}</div>
-  <button id=setgo class=p style="font-size:15px" ${!cur.pool.length?"disabled":""}>Auction next from selected set</button>`;
+  <div class=mu style="margin:4px 0">Current set: <b>${e(activeSet)}</b></div>
+  <select id=setsel>${sets.map(s=>`<option value="${e(s.name)}" ${s.name===SELSET?"selected":""}>${e(s.name)} (${s.pool.length} left · ${s.unsold} unsold)</option>`).join("")}</select>
+  <button id=setgo class=p style="font-size:15px" ${!cur.pool.length?"disabled":""}>Draw random player from selected set</button>`;
  $("#setsel").onchange=ev=>{SELSET=ev.target.value;fillSets()};
  if($("#setgo"))$("#setgo").onclick=()=>A.jumpSet();
 }
 function fillPick(){const box=$("#pk");if(!box)return;const q=($("#sq").value||"").toLowerCase();
- const m=Object.entries(P).filter(([,p])=>p.st!=="sold"&&p.n.toLowerCase().includes(q)).sort((a,b)=>a[1].ord-b[1].ord).slice(0,8);
+ const m=Object.entries(P).filter(([,p])=>p.st!=="sold"&&p.n.toLowerCase().includes(q)).slice(0,8);
  box.innerHTML=m.map(([id,p])=>`<button data-p="${id}" style="${id===PK?"outline:2px solid var(--ac)":""}">${p.o?"✈":"🇮🇳"} ${e(p.n)} · ${cr(p.b)}${p.st==="unsold"?" · unsold":""}</button>`).join("")||"<span class=mu>No match</span>";
  box.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>{PK=b.dataset.p;fillPick()});
  $("#psel").textContent=PK&&P[PK]?"Selected: "+P[PK].n+" ("+(P[PK].set||"Pool")+")":"Nothing selected"}
@@ -686,12 +722,43 @@ function fillTrade(){
  box.querySelectorAll("[data-tr]").forEach(cb=>cb.onchange=()=>{const s=cb.dataset.tr==="a"?TR.sa:TR.sb;cb.checked?s.add(cb.value):s.delete(cb.value);fillTrade()});
  if($("#trx"))$("#trx").onclick=()=>A.trade();
 }
+function fillPoolView(){
+ const box=$("#poolview");if(!box)return;
+ if(poolLoading){box.innerHTML="<div class=mu style='margin-top:6px'>Pulling live player pool…</div>";return}
+ if(!poolOpen){box.innerHTML="";return}
+ const groups=new Map();
+ Object.entries(P).filter(([,p])=>p.st==="pool"||p.st==="unsold").forEach(([id,p])=>{
+  const s=p.set||"General Pool";
+  if(!groups.has(s))groups.set(s,[]);
+  groups.get(s).push([id,p]);
+ });
+ if(!groups.size){box.innerHTML="<div class=mu style='margin-top:6px'>No remaining auctionable players</div>";return}
+ box.innerHTML=[...groups.entries()].map(([sName,list])=>`
+  <details style="margin-top:6px"><summary><b>${e(sName)}</b> (${list.length})</summary>
+  ${list.map(([id,p])=>`<div class=lg>${p.o?"✈":"🇮🇳"} ${e(p.n)} <span class=mu>· ${ROLE[p.r]} · ${cr(p.b)}${p.st==="unsold"?" · unsold":""}</span></div>`).join("")}
+  </details>`).join("");
+}
 async function reload(){
- if(S.ph==="live"||Object.values(P).some(p=>p.st==="sold"))return note("Only possible before the first sale, with the auction paused or idle");
+ if(S.ph==="live"||(S.counts&&S.counts.sold>0))return note("Only possible before the first sale, with the auction paused or idle");
  if(!rc){rc=1;setTimeout(()=>rc=0,4000);return note("Tap Reload pool again to confirm")}rc=0;
- await loadPlayers();await setS({...S,ph:"idle",pid:null,bid:0,bt:null});note("Pool reloaded & grouped into IPL sets")}
-async function startNext(){const q=pool();if(!q.length)return setS({...S,ph:"done",pid:null});
- await setS({ph:"live",pid:q[0][0],bid:0,bt:null,end:Date.now()+CLK*1000,left:0,nb:0,until:0,rid:S.rid||0})}
+ const counts=await loadPlayers();
+ await setS({...S,ph:"idle",pid:null,curPlayer:null,curSet:"Marquee Set",counts,bid:0,bt:null});
+ note("Pool reloaded · Marquee Set first")
+}
+async function startNext(){
+ await ensurePoolLoaded();
+ let setName=S.curSet||"Marquee Set";
+ let candidates=pool(setName);
+ if(!candidates.length){
+  const allPool=pool();
+  if(!allPool.length)return setS({...S,ph:"done",pid:null,curPlayer:null,counts:calcCounts(P)});
+  const activeSets=[...new Set(allPool.map(([,p])=>p.set||"General Pool"))];
+  setName=pickRand(activeSets);
+  candidates=pool(setName);
+ }
+ const[id,p]=pickRand(candidates);
+ await setS({...S,ph:"live",pid:id,curPlayer:{id,n:p.n,c:p.c,o:p.o,r:p.r,b:p.b,set:setName},curSet:setName,counts:calcCounts(P),bid:0,bt:null,end:Date.now()+CLK*1000,left:0,nb:0,until:0,rid:S.rid||0});
+}
 function queueProcessBids(){
  if(!eng||!S||S.ph!=="live")return;
  clearTimeout(bidTimer);
@@ -699,30 +766,39 @@ function queueProcessBids(){
 }
 async function processBids(){
  if(busy||!eng||!S||S.ph!=="live")return;busy=true;
- try{for(;;){const p=P[S.pid];if(!p)break;const n=need();
+ try{for(;;){const p=activePlayer();if(!p)break;const n=need();
   const c=Object.values(BD).filter(b=>b.pid===S.pid&&(b.rid||0)===(S.rid||0)&&b.amt===n&&!chk(b.tm,p,n)).sort((a,b)=>a.ts-b.ts)[0];
   if(!c)break;await setS({...S,bid:n,bt:c.tm,end:Date.now()+CLK*1000,nb:S.nb+1})}}finally{busy=false}}
 async function settle(){
  if(busy)return;busy=true;
- try{const id=S.pid,p=P[id];
+ try{const id=S.pid,p=activePlayer()||(P[id]);
+  if(!p)return;
   if(S.bt){const t=TM[S.bt];
    await updatePlayer(id,{st:"sold",tm:S.bt,pr:S.bid});
    await db.doc("teams/"+S.bt).update({pu:t.pu-S.bid,sl:t.sl-1,os:t.os-(p.o?1:0),bought:[...(t.bought||[]),{id,n:p.n,pr:S.bid}]});
    await lg({k:"sold",pid:id,tm:S.bt,pr:S.bid,t:p.n+" → "+S.bt+" for "+cr(S.bid)})}
   else{await updatePlayer(id,{st:"unsold"});await lg({k:"unsold",t:p.n+" went unsold"})}
-  await setS({...S,ph:"break",until:Date.now()+BRK})}finally{busy=false}}
+  await setS({...S,ph:"break",curPlayer:null,counts:calcCounts(P),until:Date.now()+BRK})}finally{busy=false}}
 async function bid(){
- if(!S||S.ph!=="live"||!CL[me])return;const p=P[S.pid],amt=need();
- if(chk(CL[me].tm,p,amt))return;await db.doc("bids/"+me).set({tm:CL[me].tm,pid:S.pid,amt,rid:S.rid||0,ts:Date.now()})}
+ if(!S||S.ph!=="live"||!CL[me])return;const p=activePlayer(),amt=need();
+ if(!p||chk(CL[me].tm,p,amt))return;await db.doc("bids/"+me).set({tm:CL[me].tm,pid:S.pid,amt,rid:S.rid||0,ts:Date.now()})}
 const A={
  async start(){if(S.ph==="paused")await setS({...S,ph:"live",end:Date.now()+S.left});else await startNext()},
  async pause(){if(S.ph==="live")await setS({...S,ph:"paused",left:Math.max(0,S.end-Date.now())})},
- async skip(){if(S.ph!=="live")return;const id=S.pid,o=Math.max(...ords())+1;await updatePlayer(id,{ord:o});await lg({k:"skip",t:P[id].n+" skipped (back of queue)"});await startNext()},
+ async skip(){if(S.ph!=="live")return;const id=S.pid,p=activePlayer();await updatePlayer(id,{st:"pool"});await lg({k:"skip",t:(p?p.n:"Player")+" skipped (back in set pool)"});await startNext()},
  async jumpSet(){
   if(S.ph==="live"&&S.bt)return note("Current player has a bid, let the hammer fall first");
+  await ensurePoolLoaded();
   const s=getSetsSummary().find(x=>x.name===SELSET);
   if(!s||!s.pool.length)return note("No remaining pool players in selected set");
-  await pick(s.pool[0][0]);
+  const[id]=pickRand(s.pool);
+  await pickPlayer(id);
+ },
+ async togglePool(){
+  if(poolOpen){poolOpen=false;fillPoolView();return}
+  poolOpen=true;
+  await ensurePoolLoaded();
+  fillSets();fillPick();fillPoolView();
  },
  async trade(){
   if(S.ph!=="paused")return note("Pause the auction first to execute trades");
@@ -781,31 +857,37 @@ const A={
    await lg({k:"undo",t:"UNDO "+l.t});
    return note("Trade reverted")}
   const p=P[l.pid],t=TM[l.tm];
-  await db.doc("teams/"+l.tm).update({pu:t.pu+l.pr,sl:t.sl+1,os:t.os+(p.o?1:0),bought:(t.bought||[]).filter(b=>b.id!==l.pid)});
-  await updatePlayer(l.pid,{st:"pool",tm:null,pr:0,ord:Math.min(...ords())-1});
-  await db.doc("log/"+l.id).update({un:true});await lg({k:"undo",t:"UNDO: "+p.n+" returned to pool, "+cr(l.pr)+" refunded to "+l.tm})},
- reload,restart,pick,
+  await db.doc("teams/"+l.tm).update({pu:t.pu+l.pr,sl:t.sl+1,os:t.os+(p&&p.o?1:0),bought:(t.bought||[]).filter(b=>b.id!==l.pid)});
+  await updatePlayer(l.pid,{st:"pool",tm:null,pr:0});
+  const nextCounts=S.counts?{...S.counts,pool:S.counts.pool+1,sold:Math.max(0,S.counts.sold-1)}:calcCounts(P);
+  await setS({...S,counts:nextCounts});
+  await db.doc("log/"+l.id).update({un:true});await lg({k:"undo",t:"UNDO: "+(p?p.n:l.pid)+" returned to pool, "+cr(l.pr)+" refunded to "+l.tm})},
+ reload,restart,pick:()=>pickPlayer(PK),
  async sold(){if(S.ph!=="live")return note("No player on the block");if(!S.bt)return note("No bids yet, so nothing to sell. Use Skip or let the clock run out");await settle()},
  async add(){const n=$("#an").value.trim();if(!n)return;
+  await ensurePoolLoaded();
   const nid="P"+String(Object.keys(P).length+1).padStart(3,"0");
-  const curSet=(S&&S.pid&&P[S.pid]&&P[S.pid].set)||"Custom Additions";
-  const next={...P,[nid]:{n,o:$("#ao").value==="O",r:$("#ar").value,b:+$("#ab").value,set:curSet,ord:Math.max(...ords(),0)+1,st:"pool",tm:null,pr:0}};
+  const curSet=(S&&S.curSet)||"Marquee Set";
+  const next={...P,[nid]:{n,o:$("#ao").value==="O",r:$("#ar").value,b:+$("#ab").value,set:curSet,ord:Object.keys(P).length,st:"pool",tm:null,pr:0}};
   await savePoolAll(next);
+  await setS({...S,counts:calcCounts(next)});
   await lg({k:"add",t:"Added to pool: "+n});$("#an").value=""}};
 
 function render(){
  $("#msg").hidden=true;$("#app").hidden=false;$("#adm").hidden=!adm;$("#mst1").hidden=adm;$("#mst2").hidden=!adm;$("#mm").textContent=adm?(eng?"This device runs the clock":"Another master device runs the clock"):(PINH?"":"No host PIN yet: the first person to set one becomes the host. Host, do this before sharing the link.");$("#pu").textContent=PINH?"Unlock":"Set host PIN";
- if(adm){renderAdm();fillSets();fillPick();fillRel();fillTrade()}
+ if(adm){renderAdm();fillSets();fillPick();fillRel();fillTrade();fillPoolView()}
  const my=CL[me]&&CL[me].tm;let h="";
+ const cnt=S&&S.counts;
+ const summaryHtml=cnt?`<div class=pill-row><span class=pill>Pool left: ${cnt.pool}</span><span class=pill>Sold: ${cnt.sold}</span><span class=pill>Unsold: ${cnt.unsold}</span></div>`:"";
  if(!S){h="<div class=mu>Auction not set up yet.</div>"+(adm?"<button id=ib class=p>Initialise IPL 2027 auction</button>":"")}
- else{const p=P[S.pid],lt=LG[0];
-  if(S.ph==="idle")h="<div class=big>Waiting for the auctioneer…</div>";
-  else if(S.ph==="done")h="<div class=big>Auction complete 🏆</div>";
-  else if(S.ph==="break")h=lt&&lt.k==="sold"?`<div class=sold>SOLD! 🔨</div><div>${e(lt.t)}</div>`:`<div class=big>${lt?e(lt.t):""}</div>`;
+ else{const p=activePlayer(),lt=LG[0];
+  if(S.ph==="idle")h="<div class=big>Waiting for the auctioneer…</div>"+(S.curSet?`<div class=mu>Starting set: <b>${e(S.curSet)}</b></div>`:"")+summaryHtml;
+  else if(S.ph==="done")h="<div class=big>Auction complete 🏆</div>"+summaryHtml;
+  else if(S.ph==="break")h=(lt&&lt.k==="sold"?`<div class=sold>SOLD! 🔨</div><div>${e(lt.t)}</div>`:`<div class=big>${lt?e(lt.t):""}</div>`)+summaryHtml;
   else if(p){const lead=S.bt?TM[S.bt]:null,n=need(),er=my?chk(my,p,n):"Claim a team below";
    h=`<div class=row><div>${p.set?`<div class=badge>📚 ${e(p.set)}</div>`:""}<div class=mu>${S.ph==="paused"?"⏸ PAUSED":"ON THE BLOCK"} · ${p.o?"✈ Overseas":"🇮🇳 Indian"} · ${ROLE[p.r]}</div><div class=big>${e(p.n)}</div><div class=mu>Base ${cr(p.b)}</div></div><div id=clk></div></div>
    <div class=t style="--k:${lead?lead.c:"var(--ln)"}"><div class=mu>${lead?"Highest bid":"No bids yet"}</div><div class=big>${S.bt?cr(S.bid)+" · "+S.bt:"—"}</div></div>
-   <button id=bb class=p ${er||S.ph!=="live"?"disabled":""}>${my?(er&&S.ph==="live"?e(er):"BID "+cr(n)+" as "+my):"Pick your team below"}</button>`}}
+   <button id=bb class=p ${er||S.ph!=="live"?"disabled":""}>${my?(er&&S.ph==="live"?e(er):"BID "+cr(n)+" as "+my):"Pick your team below"}</button>`+summaryHtml}
  const chips=`<div class=chips>${TEAMS.map(([id,,c])=>{const k=Object.values(CL).some(x=>x.tm===id);return`<button class=chip data-t="${id}" style="--k:${c}" ${k?"disabled":""}>${id}${k?" ✓":""}</button>`}).join("")}</div>`;
  if(!my)h+=adm?`<details data-d="claim" ${OPEN.has("claim")?"open":""} style="margin-top:10px"><summary class=mu>Play as a team (optional)</summary>${chips}</details>`:`<h3 style="margin-top:12px">Claim your team</h3>`+chips;
  else h+=`<div class=row style="margin-top:8px"><span class=mu>You are ${my}</span><button id=lv>Leave team</button></div>`;
@@ -816,10 +898,6 @@ function render(){
  $("#teams").innerHTML=Object.entries(TM).map(([id,t])=>{const bt=(t.bought||[]);return`<details class=t style="--k:${t.c}" data-d="${id}" ${OPEN.has(id)?"open":""}><summary><b>${id}</b> · ${cr(t.pu)} · ${t.sl} slots · ${t.os} OS</summary><div class=mu><b>Bought:</b> ${bt.length?bt.map(b=>e(b.n)+" "+cr(b.pr)).join(", "):"—"}</div><div style="margin-top:6px"><b class=mu>RETAINED</b>${squad(id)}</div></details>`}).join("");
  document.querySelectorAll("[data-d]").forEach(d=>d.ontoggle=()=>d.open?OPEN.add(d.dataset.d):OPEN.delete(d.dataset.d));
  $("#log").innerHTML=LG.slice(0,25).map(l=>`<div class="lg ${l.un?"un":""}">${e(l.t)}</div>`).join("")||"<span class=mu>Nothing yet</span>";
- const pl=Object.values(P).sort((a,b)=>a.ord-b.ord),row=p=>`<div class=lg>${p.o?"✈":"🇮🇳"} ${e(p.n)} <span class=mu>${p.set?"["+p.set+"] · ":""}${p.c||""} · ${ROLE[p.r]} · ${cr(p.b)}${p.st==="sold"?" · SOLD "+p.tm+" "+cr(p.pr):p.st==="unsold"?" · unsold":""}</span></div>`,
- grp=(t,f)=>{const a=pl.filter(f);return`<details data-d="pool-${t}" ${OPEN.has("pool-"+t)?"open":""}><summary><b>${t}</b> (${a.length})</summary>${a.map(row).join("")}</details>`};
- $("#pool").innerHTML=grp("Up next",p=>p.st==="pool")+grp("Sold",p=>p.st==="sold")+grp("Unsold",p=>p.st==="unsold");
- document.querySelectorAll("#pool [data-d]").forEach(d=>d.ontoggle=()=>d.open?OPEN.add(d.dataset.d):OPEN.delete(d.dataset.d));
  tick()}
 const RS=Object.fromEntries(TEAMS.map(t=>[t[0],t[6]])),GN={B:"Batters",A:"All-rounders",P:"Bowlers","?":"Role not set"};
 function squad(id){const g={B:[],A:[],P:[],"?":[]},raw=(TM[id]&&TM[id].sq!==undefined)?TM[id].sq:(RS[id]||"");
@@ -828,13 +906,16 @@ function squad(id){const g={B:[],A:[],P:[],"?":[]},raw=(TM[id]&&TM[id].sq!==unde
  return Object.entries(g).filter(([,a])=>a.length).map(([k,a])=>`<div><b>${GN[k]} (${a.length})</b></div><div class=sq>${a.map(x=>`<span>${x}</span>`).join("")}</div>`).join("")}
 function renderAdm(){const a=$("#adm");if(a.dataset.r)return;a.dataset.r=1;
  a.innerHTML=`<h3>Auctioneer controls</h3><div class=chips><button id=a1>▶ Start / Resume</button><button id=a2>⏸ Pause</button><button id=a9>🔨 Sold now</button><button id=a3>⏭ Skip player</button><button id=a4>↩ Undo last sale/trade</button><button id=a6>🔄 Reload pool</button><button id=a7>♻ Restart auction</button></div>
- <details open style="margin-top:8px"><summary>📚 Auction Sets (10–20 players/set)</summary><div id=setbox></div></details>
- <details style="margin-top:8px"><summary>🎯 Pick a player to auction now</summary><input id=sq placeholder="Search player name"><div id=pk class=chips></div><div id=psel class=mu></div><button id=a8 class=p style="font-size:15px">Auction selected player now</button></details>
+ <div style="margin-top:8px"><button id=apool>📋 Show live player pool</button><div id=poolview></div></div>
+ <details open style="margin-top:8px"><summary>📚 Auction Sets (Marquee + 10–20/set)</summary><div id=setbox></div></details>
+ <details style="margin-top:8px"><summary>🎯 Pick a player to auction now</summary><input id=sq placeholder="Search player name (loads pool if needed)"><div id=pk class=chips></div><div id=psel class=mu></div><button id=a8 class=p style="font-size:15px">Auction selected player now</button></details>
  <details style="margin-top:8px"><summary>🤝 Trade between teams (paused only)</summary><div id=trbox></div></details>
  <details style="margin-top:8px"><summary>Release a team claim</summary><div id=rl class=chips style="margin-top:6px"></div></details>
  <details style="margin-top:8px"><summary>Add player to pool</summary><input id=an placeholder="Player name"><select id=ao><option value=I>Indian</option><option value=O>Overseas</option></select><select id=ar><option value=B>Batter</option><option value=K>Keeper</option><option value=A>All-rounder</option><option value=P>Bowler</option></select><select id=ab><option value=30>Base ₹0.3 cr</option><option value=100>Base ₹1 cr</option><option value=200>Base ₹2 cr</option></select><button id=a5 class=p style="font-size:15px">Add to end of queue</button></details>
  <div class=mu style="margin-top:6px">Keep this tab open: it runs the clock and settles sales.</div>`;
- [["a1","start"],["a2","pause"],["a3","skip"],["a4","undo"],["a5","add"],["a6","reload"],["a7","restart"],["a8","pick"],["a9","sold"]].forEach(([i,f])=>$("#"+i).onclick=()=>S&&A[f]());$("#sq").oninput=fillPick}
+ [["a1","start"],["a2","pause"],["a3","skip"],["a4","undo"],["a5","add"],["a6","reload"],["a7","restart"],["a8","pick"],["a9","sold"]].forEach(([i,f])=>$("#"+i).onclick=()=>S&&A[f]());
+ $("#apool").onclick=async()=>{await A.togglePool();$("#apool").textContent=poolOpen?"🙈 Hide live player pool":"📋 Show live player pool"};
+ $("#sq").oninput=async()=>{await ensurePoolLoaded();fillPick()}}
 const sha=async s=>[...new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode("ipl27:"+s)))].map(x=>x.toString(16).padStart(2,"0")).join("");
 function note(m){const n=$("#nt");n.textContent=m;n.hidden=false;clearTimeout(note.t);note.t=setTimeout(()=>n.hidden=true,3500)}
 function setAdm(){adm=own||(!!PINH&&SV===PINH);lease();render()}
@@ -855,7 +936,6 @@ function tick(){
  if(!db||!u)return;me=await u.id();own=await u.isOwner();clearTimeout(t);try{SV=localStorage.getItem("m27")||""}catch{}
  const sub=(p,f,opts)=>db.collection(p).onSnapshot(q=>{f(q.docs);render();if(eng)queueProcessBids()},opts);
  db.doc("cfg/state").onSnapshot(s=>{S=s.exists?s.data():null;render();if(eng)queueProcessBids()});
- sub("pool",d=>{CHUNKS={};P={};d.forEach(x=>{const m=(x.data()&&x.data().map)||{};CHUNKS[x.id]=m;Object.assign(P,m)})});
  sub("teams",d=>{TM={};d.forEach(x=>TM[x.id]=x.data())});
  sub("claims",d=>{CL={};d.forEach(x=>CL[x.id]=x.data())});
  sub("bids",d=>{BD={};d.forEach(x=>BD[x.id]=x.data())});
