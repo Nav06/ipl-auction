@@ -36,34 +36,17 @@ details summary{cursor:pointer}input,select{font:inherit;padding:8px;border-radi
 <div id="top" class="c"></div>
 <div id="adm" class="c" hidden></div>
 <div class="c"><h3>Teams · purse · slots</h3><div class="mu" style="margin-bottom:6px">✈ overseas · 🏏L left-hand bat · ⚾L left-arm bowler · 🧤 keeper</div><div id="teams"></div></div>
-<div id="mst" class="c"><h3>🔑 Master mode</h3><div id="mst1"><input id="pn" type="password" inputmode="numeric" placeholder="Master PIN"><button id="pu">Unlock</button></div><div id="mst2" hidden><div class="mu">Master controls unlocked</div><input id="np" type="password" inputmode="numeric" placeholder="New PIN (4–8 digits)"><button id="ps">Set / change PIN</button></div><div id="mm" class="mu"></div></div>
+<div id="mst" class="c"><h3>🔑 Master mode</h3><div id="mst1"><input id="pn" type="password" inputmode="numeric" placeholder="Master PIN"><button id="pu">Unlock</button></div><div id="mst2" hidden><div class="mu">Master controls unlocked</div><input id="np" type="password" inputmode="numeric" placeholder="New PIN (4–8 digits)"><button id="ps">Set / change PIN</button><button id="lk">Lock this device</button></div><div id="mm" class="mu"></div></div>
 <div class="c"><h3>Live log</h3><div id="log"></div></div>
 </div>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-/* ===== Firebase config (filled in) ===== */
 const FIREBASE_CONFIG={apiKey:"AIzaSyBrBl7sXmHb1cPmlzXPeirvpXl4zwizcsI",authDomain:"badlionzzz-2027-auction.firebaseapp.com",projectId:"badlionzzz-2027-auction",storageBucket:"badlionzzz-2027-auction.firebasestorage.app",messagingSenderId:"1057928367411",appId:"1:1057928367411:web:049d0316bb755d2fd44246"};
-/* =================================================== */
-if(!window.claude){let fsP;
- const boot=async()=>{
-  if(FIREBASE_CONFIG.apiKey.startsWith("PASTE"))throw new Error("paste your Firebase config at the top of this file");
-  if(!window.firebase)throw new Error("could not load Firebase, check your connection");
-  firebase.initializeApp(FIREBASE_CONFIG);const fs=firebase.firestore();fs.settings({ignoreUndefinedProperties:true});
-  await firebase.auth().signInAnonymously();return{fs,uid:firebase.auth().currentUser.uid}};
- const ctx=()=>fsP||(fsP=boot());
- window.claude={use:async n=>{const{fs,uid}=await ctx();
-  if(n==="user")return{id:async()=>uid,isOwner:async()=>false};
-  const R=p=>fs.doc(p);
-  return{doc:p=>({onSnapshot:f=>R(p).onSnapshot(f,e=>console.error(p,e)),get:()=>R(p).get(),set:d=>R(p).set(d),update:d=>R(p).update(d),delete:()=>R(p).delete(),
-   acquire:({holder,ttlMs})=>fs.runTransaction(async t=>{const s=await t.get(R(p)),l=s.exists?s.data():null,now=Date.now();if(l&&l.holder!==holder&&l.exp>now)return{acquired:false};t.set(R(p),{holder,exp:now+ttlMs});return{acquired:true}})}),
-   collection:c=>({get:opts=>{let q=fs.collection(c);if(opts&&opts.orderBy)q=q.orderBy(opts.orderBy,opts.dir||"desc");if(opts&&opts.limit)q=q.limit(opts.limit);return q.get()},
-    onSnapshot:(f,opts)=>{let q=fs.collection(c);if(opts&&opts.orderBy)q=q.orderBy(opts.orderBy,opts.dir||"desc");if(opts&&opts.limit)q=q.limit(opts.limit);return q.onSnapshot(f,e=>console.error(c,e))},add:d=>fs.collection(c).add(d)}),
-   batch:()=>{const b=fs.batch();return{set:(p,d)=>b.set(R(p),d),delete:p=>b.delete(R(p)),commit:()=>b.commit()}}}}}}
 </script>
 <script>
-const CLK=30, BRK=6000, MINB=30, CHUNK=150;
+const CLK_FIRST=60, CLK_BID=30, BRK=6000, MINB=30, MINSQ=18, MAXSQ=25, CHUNK=150, LEASE=60000;
 const TEAMS=[
 ["CSK","Chennai Super Kings","#f9cd05",2805,6,2,"Ruturaj Gaikwad|B,Sanju Samson|K,Shivam Dube|A|L,Ayush Mhatre|B,Dewald Brevis|B|O,Urvil Patel|K,Kartik Sharma|K,Sarfaraz Khan|B,Noor Ahmad|P|OA,Rahul Chahar|P,Anshul Kamboj|P,Gurjapneet Singh|P|A,Mukesh Choudhary|P|A,Shreyas Gopal|P,Ramakrishna Ghosh|A,Akeal Hosein|P|OLA,Jamie Overton|A|O,Liam Livingstone|A|O,Jack Edwards|A|O"],
 ["DC","Delhi Capitals","#1c5bd9",3950,9,4,"Axar Patel|A|LA,KL Rahul|K,Rishabh Pant|K|L,Prithvi Shaw|B,Sameer Rizvi|B,Ashutosh Sharma|B,Tristan Stubbs|B|O,David Miller|B|OL,Lungi Ngidi|P|O,Mukesh Kumar|P,Auqib Nabi|P,Vipraj Nigam|A,Madhav Tiwari|?,Tripurana Vijay|A,Kyle Jamieson|P|O,Zeeshan Ansari|P"],
@@ -441,244 +424,214 @@ Waseem Khanday|IND|T|30|U26
 Yash Dicholkar|IND|T|30|U26
 Yashbardhan Chauhan|IND|T|30|U19
 Yashveer Goud|IND|T|30|U19`;
-const MARQUEE_NAMES=new Set([
- "Jake Fraser-McGurk","Shimron Hetmyer","Steve Smith","Daryl Mitchell","Jacob Bethell",
- "Rachin Ravindra","Wanindu Hasaranga","Ben Duckett","Devon Conway","Jamie Smith",
- "Matheesha Pathirana","Matt Henry","Trent Boult","Mark Wood"
-]);
+const MARQUEE_NAMES=new Set(["Jake Fraser-McGurk","Shimron Hetmyer","Steve Smith","Daryl Mitchell","Jacob Bethell","Rachin Ravindra","Wanindu Hasaranga","Ben Duckett","Devon Conway","Jamie Smith","Matheesha Pathirana","Matt Henry","Trent Boult","Mark Wood"]);
 const ROLE={B:"Batter",K:"Keeper",A:"All-rounder",P:"Bowler",T:"Role TBC"}, RSHORT={B:"Batters",K:"Keepers",A:"All-rounders",P:"Bowlers",T:"Role TBC"};
 const $=s=>document.querySelector(s), e=s=>String(s).replace(/[&<>"]/g,c=>"&#"+c.charCodeAt(0)+";");
 const cr=l=>"₹"+(+(l/100).toFixed(2))+" cr", inc=l=>l<100?10:l<200?20:l<500?25:50;
-const pickRand=arr=>arr[Math.floor(Math.random()*arr.length)];
-let db,me,adm=false,own=false,eng=false,PINH="",SV="",rc=0,rc2=0,PK="",SELSET="",TAB=Math.random().toString(36).slice(2),S=null,P={},CHUNKS={},TM={},CL={},BD={},LG=[],busy=false,bidTimer=null,poolOpen=false,poolLoading=false;
+let fs,me,ADM=false,eng=false,META=null,rc=0,rc2=0,PK="",SELSET="",S=null,P={},CHUNKS={},TM={},CL={},BD={},busy=false,bidTimer=null,poolOpen=false,poolLoading=false,bidUn=null,lastBid="",lastBidT=0,rqf=0;
+let TAB=sessionStorage.getItem("tab");if(!TAB){TAB=Math.random().toString(36).slice(2);sessionStorage.setItem("tab",TAB)}
 const OPEN=new Set();
 let TR={a:"CSK",b:"DC",sa:new Set(),sb:new Set(),dir:"ab",val:""};
-
-function chk(tm,p,amt){const t=TM[tm];if(!t)return"No team";if(S&&S.bt===tm)return"You lead";if(t.sl<=0)return"Squad full";
- if(p.o&&t.os<=0)return"No overseas slot";if(amt>t.pu-(t.sl-1)*MINB)return"Not enough purse";return""}
-const need=()=>S.bt?S.bid+inc(S.bid):(S.curPlayer?S.curPlayer.b:(P[S.pid]&&P[S.pid].b)||30);
-const activePlayer=()=>(S&&S.curPlayer)||P[S.pid]||null;
-function calcCounts(obj){
- let poolCnt=0,soldCnt=0,unsoldCnt=0;
- Object.values(obj||{}).forEach(p=>{if(p.st==="sold")soldCnt++;else if(p.st==="unsold")unsoldCnt++;else poolCnt++});
- return{pool:poolCnt,sold:soldCnt,unsold:unsoldCnt};
-}
-const setS=async o=>{S=o;await db.doc("cfg/state").set(o)};
-const lg=o=>db.collection("log").add({...o,ts:Date.now()});
-const pool=(setName)=>Object.entries(P).filter(([,p])=>p.st==="pool"&&(!setName||p.set===setName));
-
-/* ===== Marquee First + Classic IPL Sets (10-20 players per set) ===== */
+const D=p=>fs.doc(p),FV=()=>firebase.firestore.FieldValue,er=x=>console.error(x);
+const rq=()=>{if(!rqf)rqf=requestAnimationFrame(()=>{rqf=0;render()})};
+const st=id=>{const d=S&&S.done&&S.done[id];return d==="s"?"sold":d==="u"?"unsold":"pool"};
+const calcCounts=done=>{const v=Object.values(done||{}),s=v.filter(x=>x==="s").length;return{pool:Object.keys(P).length-v.length,sold:s,unsold:v.length-s}};
+const reserve=t=>Math.max(0,t.sl-(MAXSQ-MINSQ+1))*MINB; // only need to reach the 18-player minimum
+const okT=(t,p,amt)=>!!t&&t.sl>0&&!(p.o&&t.os<=0)&&amt<=t.pu-reserve(t);
+function chk(tm,p,amt){const t=TM[tm];if(!t)return"No team";if(S&&S.bt===tm)return"You lead";if(t.sl<=0)return"Squad full";if(p.o&&t.os<=0)return"No overseas slot";if(amt>t.pu-reserve(t))return"Not enough purse";return""}
+const need=()=>S.bt?S.bid+inc(S.bid):(S.curPlayer?S.curPlayer.b:30);
+const activePlayer=()=>(S&&S.curPlayer)||null;
+const mine=()=>Object.keys(CL).find(k=>CL[k].uid===me);
+const pushLg=(a,x)=>[{...x,ts:Date.now()},...(a||[])].slice(0,20);
+const live=()=>!!S&&S.ph==="live", pre=()=>live()&&Date.now()<(S.start||0);
+const put=async o=>{await D("cfg/state").set(o);S=o};
 function buildPoolWithSets(){
- const all=POOL.split("\n").map((l,i)=>{const[n,c,r,b,src]=l.split("|");return{id:"P"+String(i+1).padStart(3,"0"),n,c,o:c!=="IND",r,b:+b,src,st:"pool",tm:null,pr:0}});
- const marqueeItems=all.filter(p=>MARQUEE_NAMES.has(p.n));
- const remaining=all.filter(p=>!MARQUEE_NAMES.has(p.n));
- const tiers=[
-  {label:"₹2 Cr",fn:p=>p.b>=200},
-  {label:"₹1–1.5 Cr",fn:p=>p.b>=100&&p.b<200},
-  {label:"₹75 L",fn:p=>p.b===75},
-  {label:"≤₹50 L",fn:p=>p.b<=50}
- ];
- const roleOrder=["B","K","A","P","T"];
- const buckets=[];
- tiers.forEach(t=>{
-  roleOrder.forEach(r=>{
-   const items=remaining.filter(p=>t.fn(p)&&p.r===r).sort((a,b)=>b.b-a.b||a.n.localeCompare(b.n));
-   if(items.length)buckets.push({tier:t.label,roles:[r],items});
-  });
- });
- const merged=[];
- let cur=null;
- for(const b of buckets){
-  if(!cur){cur={tier:b.tier,roles:[...b.roles],items:[...b.items]};continue}
-  if(cur.items.length<10&&(cur.tier===b.tier||cur.items.length+b.items.length<=20)){
-   if(cur.tier!==b.tier)cur.tier=cur.tier+" / "+b.tier;
-   b.roles.forEach(r=>{if(!cur.roles.includes(r))cur.roles.push(r)});
-   cur.items.push(...b.items);
-  }else{
-   merged.push(cur);
-   cur={tier:b.tier,roles:[...b.roles],items:[...b.items]};
-  }
- }
- if(cur){
-  if(cur.items.length<10&&merged.length&&merged[merged.length-1].items.length+cur.items.length<=22){
-   const prev=merged[merged.length-1];
-   if(prev.tier!==cur.tier)prev.tier=prev.tier+" / "+cur.tier;
-   cur.roles.forEach(r=>{if(!prev.roles.includes(r))prev.roles.push(r)});
-   prev.items.push(...cur.items);
-  }else merged.push(cur);
- }
- const finalSets=[{name:"Marquee Set",items:marqueeItems}];
- merged.forEach(b=>{
-  const rLabel=b.roles.map(r=>RSHORT[r]||r).join(" & ");
-  const baseName=`${b.tier} · ${rLabel}`;
-  const total=b.items.length;
-  if(total<=20){
-   finalSets.push({name:baseName,items:b.items});
-  }else{
-   const nChunks=Math.ceil(total/16);
-   const size=Math.ceil(total/nChunks);
-   for(let i=0;i<nChunks;i++){
-    const slice=b.items.slice(i*size,(i+1)*size);
-    if(slice.length)finalSets.push({name:`${baseName} (Set ${i+1})`,items:slice});
-   }
-  }
- });
- let ord=0;
- const out={};
- finalSets.forEach(s=>{
-  s.items.forEach(p=>{
-   out[p.id]={n:p.n,c:p.c,o:p.o,r:p.r,b:p.b,src:p.src,set:s.name,ord:ord++,st:"pool",tm:null,pr:0};
-  });
- });
- return out;
+const all=POOL.split("\n").map((l,i)=>{const[n,c,r,b,src]=l.split("|");return{id:"P"+String(i+1).padStart(3,"0"),n,c,o:c!=="IND",r,b:+b,src,st:"pool",tm:null,pr:0}});
+const marqueeItems=all.filter(p=>MARQUEE_NAMES.has(p.n));
+const remaining=all.filter(p=>!MARQUEE_NAMES.has(p.n));
+const tiers=[
+{label:"₹2 Cr",fn:p=>p.b>=200},
+{label:"₹1–1.5 Cr",fn:p=>p.b>=100&&p.b<200},
+{label:"₹75 L",fn:p=>p.b===75},
+{label:"≤₹50 L",fn:p=>p.b<=50}
+];
+const roleOrder=["B","K","A","P","T"];
+const buckets=[];
+tiers.forEach(t=>{
+roleOrder.forEach(r=>{
+const items=remaining.filter(p=>t.fn(p)&&p.r===r).sort((a,b)=>b.b-a.b||a.n.localeCompare(b.n));
+if(items.length)buckets.push({tier:t.label,roles:[r],items});
+});
+});
+const merged=[];
+let cur=null;
+for(const b of buckets){
+if(!cur){cur={tier:b.tier,roles:[...b.roles],items:[...b.items]};continue}
+if(cur.items.length<10&&(cur.tier===b.tier||cur.items.length+b.items.length<=20)){
+if(cur.tier!==b.tier)cur.tier=cur.tier+" / "+b.tier;
+b.roles.forEach(r=>{if(!cur.roles.includes(r))cur.roles.push(r)});
+cur.items.push(...b.items);
+}else{
+merged.push(cur);
+cur={tier:b.tier,roles:[...b.roles],items:[...b.items]};
 }
-
-/* ===== Chunked Pool Storage (2 docs; fetched on-demand by auctioneer) ===== */
-async function ensurePoolLoaded(){
- if(Object.keys(P).length)return P;
- poolLoading=true;render();
- try{
-  const q=await db.collection("pool").get();
-  CHUNKS={};P={};
-  q.docs.forEach(x=>{const m=(x.data()&&x.data().map)||{};CHUNKS[x.id]=m;Object.assign(P,m)});
-  return P;
- }finally{poolLoading=false;render()}
 }
-async function savePoolAll(obj){
- P=obj;
- const ids=Object.keys(obj).sort();
- const b=db.batch();
- const chunks={};
- for(let i=0;i<ids.length;i+=CHUNK){
-  const cid="c"+Math.floor(i/CHUNK);
-  const map={};
-  ids.slice(i,i+CHUNK).forEach(id=>map[id]=obj[id]);
-  chunks[cid]=map;
-  b.set("pool/"+cid,{map});
- }
- Object.keys(CHUNKS).forEach(cid=>{if(!chunks[cid])b.delete("pool/"+cid)});
- CHUNKS=chunks;
- await b.commit();
+if(cur){
+if(cur.items.length<10&&merged.length&&merged[merged.length-1].items.length+cur.items.length<=22){
+const prev=merged[merged.length-1];
+if(prev.tier!==cur.tier)prev.tier=prev.tier+" / "+cur.tier;
+cur.roles.forEach(r=>{if(!prev.roles.includes(r))prev.roles.push(r)});
+prev.items.push(...cur.items);
+}else merged.push(cur);
 }
-async function updatePlayer(id,patch){
- await ensurePoolLoaded();
- if(!P[id])return;
- P[id]={...P[id],...patch};
- const ids=Object.keys(P).sort();
- const idx=ids.indexOf(id);
- const cid="c"+Math.floor(Math.max(0,idx)/CHUNK);
- await db.doc("pool/"+cid).update({["map."+id]:P[id]});
+const finalSets=[{name:"Marquee Set",items:marqueeItems}];
+merged.forEach(b=>{
+const rLabel=b.roles.map(r=>RSHORT[r]||r).join(" & ");
+const baseName=`${b.tier} · ${rLabel}`;
+const total=b.items.length;
+if(total<=20){
+finalSets.push({name:baseName,items:b.items});
+}else{
+const nChunks=Math.ceil(total/16);
+const size=Math.ceil(total/nChunks);
+for(let i=0;i<nChunks;i++){
+const slice=b.items.slice(i*size,(i+1)*size);
+if(slice.length)finalSets.push({name:`${baseName} (Set ${i+1})`,items:slice});
 }
-async function updatePlayersBatch(patches){
- await ensurePoolLoaded();
- const cids=new Set();
- const ids=Object.keys(P).sort();
- Object.entries(patches).forEach(([id,patch])=>{
-  if(!P[id])return;
-  P[id]={...P[id],...patch};
-  const idx=ids.indexOf(id);
-  cids.add("c"+Math.floor(Math.max(0,idx)/CHUNK));
- });
- const b=db.batch();
- cids.forEach(cid=>{
-  const i=Number(cid.slice(1))*CHUNK;
-  const map={};
-  ids.slice(i,i+CHUNK).forEach(id=>map[id]=P[id]);
-  b.set("pool/"+cid,{map});
- });
- await b.commit();
 }
-
+});
+let ord=0;
+const out={};
+finalSets.forEach(s=>{
+s.items.forEach(p=>{
+out[p.id]={n:p.n,c:p.c,o:p.o,r:p.r,b:p.b,src:p.src,set:s.name,ord:ord++,st:"pool",tm:null,pr:0};
+});
+});
+return out;
+}
+async function ensurePoolLoaded(){if(Object.keys(P).length)return P;poolLoading=true;rq();try{const q=await fs.collection("pool").get();CHUNKS={};P={};q.docs.forEach(x=>{const m=x.data().map||{};CHUNKS[x.id]=m;Object.assign(P,m)});return P}finally{poolLoading=false;rq()}}
+async function savePoolAll(obj){P=obj;const ids=Object.keys(obj).sort(),b=fs.batch(),ch={};for(let i=0;i<ids.length;i+=CHUNK){const cid="c"+i/CHUNK,map={};ids.slice(i,i+CHUNK).forEach(id=>map[id]=obj[id]);ch[cid]=map;b.set(D("pool/"+cid),{map})}Object.keys(CHUNKS).forEach(c=>{if(!ch[c])b.delete(D("pool/"+c))});CHUNKS=ch;await b.commit()}
 const parseSq=str=>(str||"").split(",").filter(Boolean).map(raw=>{const[n,r="?",f=""]=raw.split("|");return{raw,n,r,f,o:f.includes("O")}});
 function getRoster(id){const t=TM[id];if(!t)return[];
- const ret=parseSq(t.sq).map((x,i)=>({key:"R:"+i+":"+x.raw,type:"ret",n:x.n,o:x.o,raw:x.raw,pr:0}));
- const bgt=(t.bought||[]).map(b=>{const p=P[b.id]||{};return{key:"B:"+b.id,type:"bgt",id:b.id,n:b.n,o:!!p.o,pr:b.pr}});
- return[...ret,...bgt]}
+const ret=parseSq(t.sq).map((x,i)=>({key:"R:"+i+":"+x.raw,type:"ret",n:x.n,o:x.o,raw:x.raw,pr:0}));
+const bgt=(t.bought||[]).map(b=>{const p=P[b.id]||{};return{key:"B:"+b.id,type:"bgt",id:b.id,n:b.n,o:!!b.o,pr:b.pr}});
+return[...ret,...bgt]}
 function evalTrade(){
- const tA=TM[TR.a],tB=TM[TR.b];if(!tA||!tB||TR.a===TR.b)return{err:"Pick two different teams"};
- const rA=getRoster(TR.a),rB=getRoster(TR.b);
- const sendA=rA.filter(x=>TR.sa.has(x.key)),sendB=rB.filter(x=>TR.sb.has(x.key));
- const val=Math.max(0,Math.round(Number(TR.val)||0));
- if(!sendA.length&&!sendB.length&&val===0)return{err:"Select players and/or enter a purse adjustment"};
- const dPurseA=TR.dir==="ab"?-val:val;
- const dPurseB=-dPurseA;
- const osOutA=sendA.filter(x=>x.o).length,osInA=sendB.filter(x=>x.o).length;
- const osOutB=sendB.filter(x=>x.o).length,osInB=sendA.filter(x=>x.o).length;
- const newSlA=tA.sl+sendA.length-sendB.length;
- const newSlB=tB.sl+sendB.length-sendA.length;
- const newOsA=tA.os+osOutA-osInA;
- const newOsB=tB.os+osOutB-osInB;
- const newPuA=tA.pu+dPurseA;
- const newPuB=tB.pu+dPurseB;
- let err="";
- if(!S||S.ph!=="paused")err="Pause the auction first to execute trades";
- else if(newSlA<0)err=TR.a+" exceeds squad slot limit ("+newSlA+" slots left)";
- else if(newSlB<0)err=TR.b+" exceeds squad slot limit ("+newSlB+" slots left)";
- else if(newOsA<0)err=TR.a+" exceeds overseas limit ("+newOsA+" OS slots left)";
- else if(newOsB<0)err=TR.b+" exceeds overseas limit ("+newOsB+" OS slots left)";
- else if(newPuA<newSlA*MINB)err=TR.a+" lacks minimum purse ("+cr(newPuA)+" < "+cr(newSlA*MINB)+" needed)";
- else if(newPuB<newSlB*MINB)err=TR.b+" lacks minimum purse ("+cr(newPuB)+" < "+cr(newSlB*MINB)+" needed)";
- return{err,tA,tB,sendA,sendB,val,dPurseA,dPurseB,newSlA,newSlB,newOsA,newOsB,newPuA,newPuB}}
-
-const par=async(a,f,n=10)=>{for(let i=0;i<a.length;i+=n)await Promise.all(a.slice(i,i+n).map((x,j)=>f(x,i+j)))};
-async function loadPlayers(){
- const built=buildPoolWithSets();
- await savePoolAll(built);
- return calcCounts(built);
-}
-async function init(){
- $("#ib").disabled=true;
- const counts=await loadPlayers();
- const b=db.batch();
- TEAMS.forEach(([id,n,c,pu,sl,os,sq])=>b.set("teams/"+id,{n,c,pu,sl,os,sq,bought:[]}));
- await b.commit();
- await setS({ph:"idle",pid:null,curPlayer:null,curSet:"Marquee Set",counts,bid:0,bt:null,end:0,left:0,nb:0,until:0});
-}
-async function restart(){
- if(!rc2){rc2=1;setTimeout(()=>rc2=0,4000);return note("Tap Restart again to wipe all results and start over")}rc2=0;
- const rid=Date.now();
- await setS({ph:"idle",pid:null,curPlayer:null,curSet:"Marquee Set",counts:{pool:0,sold:0,unsold:0},bid:0,bt:null,end:0,left:0,nb:0,until:0,rid});
- await par(LG.map(l=>l.id),id=>db.doc("log/"+id).delete());
- await par(Object.keys(BD),id=>db.doc("bids/"+id).delete().catch(()=>{}));
- const b=db.batch();
- TEAMS.forEach(([id,n,c,pu,sl,os,sq])=>b.set("teams/"+id,{n,c,pu,sl,os,sq,bought:[]}));
- await b.commit();
- const counts=await loadPlayers();
- await setS({ph:"idle",pid:null,curPlayer:null,curSet:"Marquee Set",counts,bid:0,bt:null,end:0,left:0,nb:0,until:0,rid});
- note("Auction restarted · Marquee Set first")
-}
-async function pickPlayer(id){
- await ensurePoolLoaded();
- const p=P[id];
- if(!p)return note("Player not found");
- if(p.st==="sold")return note("That player is already sold");
- if(S.ph==="live"&&S.bt)return note("Current player has a bid, let the hammer fall first");
- if(p.st!=="pool")await updatePlayer(id,{st:"pool"});
- const counts=calcCounts(P);
- await setS({...S,ph:"live",pid:id,curPlayer:{id,n:p.n,c:p.c,o:p.o,r:p.r,b:p.b,set:p.set},curSet:p.set||S.curSet||"Marquee Set",counts,bid:0,bt:null,end:Date.now()+CLK*1000,left:0,nb:0,until:0});
- await lg({k:"pick",t:"Auctioneer put "+p.n+" ("+(p.set||"Pool")+") on the block"})
-}
+const tA=TM[TR.a],tB=TM[TR.b];if(!tA||!tB||TR.a===TR.b)return{err:"Pick two different teams"};
+const rA=getRoster(TR.a),rB=getRoster(TR.b);
+const sendA=rA.filter(x=>TR.sa.has(x.key)),sendB=rB.filter(x=>TR.sb.has(x.key));
+const val=Math.max(0,Math.round(Number(TR.val)||0));
+if(!sendA.length&&!sendB.length&&val===0)return{err:"Select players and/or enter a purse adjustment"};
+const dPurseA=TR.dir==="ab"?-val:val;
+const dPurseB=-dPurseA;
+const osOutA=sendA.filter(x=>x.o).length,osInA=sendB.filter(x=>x.o).length;
+const osOutB=sendB.filter(x=>x.o).length,osInB=sendA.filter(x=>x.o).length;
+const newSlA=tA.sl+sendA.length-sendB.length;
+const newSlB=tB.sl+sendB.length-sendA.length;
+const newOsA=tA.os+osOutA-osInA;
+const newOsB=tB.os+osOutB-osInB;
+const newPuA=tA.pu+dPurseA;
+const newPuB=tB.pu+dPurseB;
+let err="";
+if(!S||S.ph!=="paused")err="Pause the auction first to execute trades";
+else if(newSlA<0)err=TR.a+" exceeds squad slot limit ("+newSlA+" slots left)";
+else if(newSlB<0)err=TR.b+" exceeds squad slot limit ("+newSlB+" slots left)";
+else if(newOsA<0)err=TR.a+" exceeds overseas limit ("+newOsA+" OS slots left)";
+else if(newOsB<0)err=TR.b+" exceeds overseas limit ("+newOsB+" OS slots left)";
+else if(newPuA<newSlA*MINB)err=TR.a+" lacks minimum purse ("+cr(newPuA)+" < "+cr(newSlA*MINB)+" needed)";
+else if(newPuB<newSlB*MINB)err=TR.b+" lacks minimum purse ("+cr(newPuB)+" < "+cr(newSlB*MINB)+" needed)";
+return{err,tA,tB,sendA,sendB,val,dPurseA,dPurseB,newSlA,newSlB,newOsA,newOsB,newPuA,newPuB}}
+function pickNext(done,cur,tm,excl){const sk=[],rem=Object.entries(P).filter(([id])=>!done[id]),ord=new Map();
+ rem.forEach(([,p])=>{const s=p.set||"General Pool";if(!ord.has(s)||p.ord<ord.get(s))ord.set(s,p.ord)});
+ const sets=[...ord].sort((a,b)=>a[1]-b[1]).map(x=>x[0]);if(sets.includes(cur))sets.unshift(...sets.splice(sets.indexOf(cur),1));
+ const can=p=>Object.values(tm).some(t=>okT(t,p,p.b));
+ for(const s of sets){const c=rem.filter(([id,p])=>(p.set||"General Pool")===s&&id!==excl);
+  while(c.length){const[id,p]=c.splice(Math.floor(Math.random()*c.length),1)[0];if(can(p))return{id,p,set:s,sk};sk.push(id)}}
+ const x=excl&&P[excl];return x&&!done[excl]&&can(x)?{id:excl,p:x,set:x.set,sk}:{sk}}
+function nextState(done,lg,tm,excl,delay){const r=pickNext(done,S.curSet,tm,excl);r.sk.forEach(id=>done[id]="u");
+ if(r.sk.length)lg=pushLg(lg,{k:"auto",t:r.sk.length+" player(s) auto-skipped: no team can bid"});
+ const n=Date.now(),o={...S,v:2,done,lg,counts:calcCounts(done),tw:n};
+ if(!r.id)return{...o,ph:"done",pid:null,curPlayer:null,bt:null,bid:0};const p=r.p;
+ return{...o,ph:"live",pid:r.id,curPlayer:{id:r.id,n:p.n,c:p.c,o:p.o,r:p.r,b:p.b,set:r.set},curSet:r.set,bid:0,bt:null,nb:0,start:n+delay,end:n+delay+CLK_FIRST*1000,left:0}}
+const freshS=rid=>({v:2,ph:"idle",pid:null,curPlayer:null,curSet:"Marquee Set",done:{},lg:[],counts:calcCounts({}),bid:0,bt:null,nb:0,end:0,start:0,left:0,rid:rid||0});
+async function resetAll(){await savePoolAll(buildPoolWithSets());const b=fs.batch();TEAMS.forEach(([id,n,c,pu,sl,os,sq])=>b.set(D("teams/"+id),{n,c,pu,sl,os,sq,bought:[]}));const s=freshS(Date.now());b.set(D("cfg/state"),s);await b.commit();S=s}
+const init=async()=>{$("#ib").disabled=true;await resetAll()};
+async function restart(){if(!rc2){rc2=1;setTimeout(()=>rc2=0,4000);return note("Tap Restart again to wipe all results and start over")}rc2=0;await resetAll();note("Auction restarted · Marquee Set first")}
+async function reload(){if(live()||S.counts.sold>0)return note("Only possible before the first sale, with the auction paused or idle");if(!rc){rc=1;setTimeout(()=>rc=0,4000);return note("Tap Reload pool again to confirm")}rc=0;await savePoolAll(buildPoolWithSets());await put({...S,ph:"idle",pid:null,curPlayer:null,curSet:"Marquee Set",counts:calcCounts(S.done)});note("Pool reloaded")}
+async function pickPlayer(id){await ensurePoolLoaded();const p=P[id];if(!p)return note("Player not found");if(st(id)==="sold")return note("That player is already sold");if(live()&&S.bt)return note("Current player has a bid, let the hammer fall first");
+ const done={...S.done};delete done[id];const n=Date.now();
+ await put({...S,done,counts:calcCounts(done),lg:pushLg(S.lg,{k:"pick",t:"Auctioneer put "+p.n+" ("+(p.set||"Pool")+") on the block"}),ph:"live",pid:id,curPlayer:{id,n:p.n,c:p.c,o:p.o,r:p.r,b:p.b,set:p.set},curSet:p.set||S.curSet,bid:0,bt:null,nb:0,start:0,end:n+CLK_FIRST*1000,left:0,tw:n})}
+async function settle(){if(busy)return;busy=true;try{await ensurePoolLoaded();const id=S.pid,p=activePlayer();if(!p)return;
+ const done={...S.done},tm={...TM},b=fs.batch();let en;
+ if(S.bt){const t=TM[S.bt],bo={id,n:p.n,pr:S.bid,o:!!p.o};
+  b.update(D("teams/"+S.bt),{pu:FV().increment(-S.bid),sl:FV().increment(-1),os:FV().increment(p.o?-1:0),bought:FV().arrayUnion(bo)});
+  tm[S.bt]={...t,pu:t.pu-S.bid,sl:t.sl-1,os:t.os-(p.o?1:0)};done[id]="s";en={k:"sold",pid:id,tm:S.bt,pr:S.bid,bo,t:p.n+" → "+S.bt+" for "+cr(S.bid)}}
+ else{done[id]="u";en={k:"unsold",t:p.n+" went unsold"}}
+ const ns=nextState(done,pushLg(S.lg,en),tm,null,BRK);b.set(D("cfg/state"),ns);await b.commit();S=ns}finally{busy=false}}
+async function processBids(){if(busy||!eng||!live()||pre())return;busy=true;try{for(;;){const p=activePlayer();if(!p)break;const n=need();
+ const c=Object.values(BD).filter(x=>x.pid===S.pid&&(x.rid||0)===(S.rid||0)&&x.amt===n&&!chk(x.tm,p,n)).sort((a,b)=>a.ts-b.ts)[0];if(!c)break;
+ const u={bid:n,bt:c.tm,end:Date.now()+CLK_BID*1000,nb:S.nb+1,tw:Date.now()};await D("cfg/state").update(u);S={...S,...u}}}finally{busy=false}}
+const queueBids=()=>{if(!eng||!live())return;clearTimeout(bidTimer);bidTimer=setTimeout(processBids,120)};
+async function expire(){await processBids();if(!busy&&live()&&Date.now()>=S.end)await settle()}
+async function bid(){const my=mine();if(!live()||pre()||!my)return;const p=activePlayer(),amt=need(),k=S.pid+"|"+amt;
+ if(!p||chk(my,p,amt)||(k===lastBid&&Date.now()-lastBidT<2500))return;lastBid=k;lastBidT=Date.now();
+ await D("bids/"+me).set({tm:my,pid:S.pid,amt,rid:S.rid||0,ts:FV().serverTimestamp()})}
+async function lease(force){let ok=false;
+ if(ADM)try{ok=await fs.runTransaction(async t=>{const r=D("cfg/engine"),s=await t.get(r),l=s.exists?s.data():null,n=Date.now();if(!force&&l&&l.holder!==me+TAB&&l.exp>n)return false;t.set(r,{holder:me+TAB,exp:n+LEASE});return true})}catch{}
+ if(ok!==eng){eng=ok;
+  if(eng&&!bidUn)bidUn=fs.collection("bids").onSnapshot(q=>{BD={};q.forEach(x=>{const d=x.data({serverTimestamps:"estimate"});BD[x.id]={...d,ts:d.ts&&d.ts.toMillis?d.ts.toMillis():Date.now()}});queueBids()},er);
+  if(!eng&&bidUn){bidUn();bidUn=null;BD={}}rq()}}
+const A={
+ async start(){if(S.ph==="paused")await put({...S,ph:"live",start:0,end:Date.now()+S.left,tw:Date.now()});else if(S.ph!=="live"){await ensurePoolLoaded();await put(nextState({...S.done},S.lg,TM,null,0))}},
+ async pause(){if(live())await put({...S,ph:"paused",left:Math.max(0,S.end-Date.now()),tw:Date.now()})},
+ async skip(){if(!live())return;const p=activePlayer();await put(nextState({...S.done},pushLg(S.lg,{k:"skip",t:p.n+" skipped (back in set pool)"}),TM,S.pid,0))},
+ async jumpSet(){if(live()&&S.bt)return note("Current player has a bid, let the hammer fall first");await ensurePoolLoaded();const c=Object.keys(P).filter(id=>st(id)==="pool"&&(P[id].set||"General Pool")===SELSET);if(!c.length)return note("No remaining pool players in selected set");await pickPlayer(c[Math.floor(Math.random()*c.length)])},
+ async togglePool(){if(poolOpen){poolOpen=false;fillPoolView();return}poolOpen=true;await ensurePoolLoaded();fillSets();fillPick();fillPoolView()},
+ async sold(){if(!live())return note("No player on the block");if(!S.bt)return note("No bids yet, so nothing to sell. Use Skip or let the clock run out");await settle()},
+ reload,restart,pick:()=>pickPlayer(PK),
+ async takeover(){await lease(true);note(eng?"This device runs the clock":"Could not take over")},
+ async trade(){if(S.ph!=="paused")return note("Pause the auction first to execute trades");const ev=evalTrade();if(ev.err)return note(ev.err);
+  const{tA,tB,sendA,sendB,val,dPurseA,dPurseB,newSlA,newSlB,newOsA,newOsB,newPuA,newPuB}=ev;
+  const rm=(str,items)=>{const a=(str||"").split(",").filter(Boolean);items.filter(x=>x.type==="ret").forEach(x=>{const i=a.indexOf(x.raw);if(i>-1)a.splice(i,1)});return a},ret=i=>i.filter(x=>x.type==="ret").map(x=>x.raw);
+  const ia=new Set(sendA.filter(x=>x.type==="bgt").map(x=>x.id)),ib=new Set(sendB.filter(x=>x.type==="bgt").map(x=>x.id));
+  const mA=(tA.bought||[]).filter(x=>ia.has(x.id)),mB=(tB.bought||[]).filter(x=>ib.has(x.id));
+  const parts=[];if(sendA.length)parts.push(TR.a+" sends "+sendA.map(x=>x.n).join(", "));if(sendB.length)parts.push(TR.b+" sends "+sendB.map(x=>x.n).join(", "));if(val>0)parts.push((TR.dir==="ab"?TR.a+" → "+TR.b:TR.b+" → "+TR.a)+" "+cr(val));
+  const en={k:"trade",a:TR.a,b:TR.b,dPurseA,dPurseB,dSlA:newSlA-tA.sl,dSlB:newSlB-tB.sl,dOsA:newOsA-tA.os,dOsB:newOsB-tB.os,retA:ret(sendA),retB:ret(sendB),bgtA:mA,bgtB:mB,t:"TRADE: "+parts.join(" · ")};
+  const b=fs.batch(),ns={...S,lg:pushLg(S.lg,en),tw:Date.now()};
+  b.update(D("teams/"+TR.a),{pu:newPuA,sl:newSlA,os:newOsA,sq:[...rm(tA.sq,sendA),...ret(sendB)].join(","),bought:[...(tA.bought||[]).filter(x=>!ia.has(x.id)),...mB]});
+  b.update(D("teams/"+TR.b),{pu:newPuB,sl:newSlB,os:newOsB,sq:[...rm(tB.sq,sendB),...ret(sendA)].join(","),bought:[...(tB.bought||[]).filter(x=>!ib.has(x.id)),...mA]});
+  b.set(D("cfg/state"),ns);await b.commit();S=ns;TR.sa.clear();TR.sb.clear();TR.val="";fillTrade();note("Trade executed")},
+ async undo(){if(live())return note("Pause the auction first");const i=(S.lg||[]).findIndex(x=>(x.k==="sold"||x.k==="trade")&&!x.un);if(i<0)return note("Nothing to undo");
+  const l=S.lg[i],b=fs.batch(),done={...S.done};
+  if(l.k==="trade"){const tA=TM[l.a],tB=TM[l.b],rm=(s,r)=>{const a=(s||"").split(",").filter(Boolean);(r||[]).forEach(x=>{const j=a.indexOf(x);if(j>-1)a.splice(j,1)});return a};
+   const ia=new Set((l.bgtA||[]).map(x=>x.id)),ib=new Set((l.bgtB||[]).map(x=>x.id));
+   b.update(D("teams/"+l.a),{pu:tA.pu-l.dPurseA,sl:tA.sl-l.dSlA,os:tA.os-l.dOsA,sq:[...rm(tA.sq,l.retB),...(l.retA||[])].join(","),bought:[...(tA.bought||[]).filter(x=>!ib.has(x.id)),...(l.bgtA||[])]});
+   b.update(D("teams/"+l.b),{pu:tB.pu-l.dPurseB,sl:tB.sl-l.dSlB,os:tB.os-l.dOsB,sq:[...rm(tB.sq,l.retA),...(l.retB||[])].join(","),bought:[...(tB.bought||[]).filter(x=>!ia.has(x.id)),...(l.bgtB||[])]})}
+  else{b.update(D("teams/"+l.tm),{pu:FV().increment(l.pr),sl:FV().increment(1),os:FV().increment(l.bo.o?1:0),bought:FV().arrayRemove(l.bo)});delete done[l.pid]}
+  const ns={...S,done,counts:calcCounts(done),lg:pushLg(S.lg.map((x,j)=>j===i?{...x,un:true}:x),{k:"undo",t:"UNDO: "+l.t}),tw:Date.now()};b.set(D("cfg/state"),ns);await b.commit();S=ns;note("Reverted")},
+ async add(){const n=$("#an").value.trim();if(!n)return;await ensurePoolLoaded();const k=Object.keys(P).length,nid="P"+String(k+1).padStart(3,"0"),p={n,o:$("#ao").value==="O",r:$("#ar").value,b:+$("#ab").value,set:S.curSet||"Marquee Set",ord:k};
+  P[nid]=p;await D("pool/c"+Math.floor(k/CHUNK)).set({map:{[nid]:p}},{merge:true});await put({...S,counts:calcCounts(S.done),lg:pushLg(S.lg,{k:"add",t:"Added to pool: "+n})});$("#an").value=""}};
 function getSetsSummary(){
- const map=new Map();
- Object.entries(P).sort((a,b)=>a[1].ord-b[1].ord).forEach(([id,p])=>{
-  const s=p.set||"General Pool";
-  if(!map.has(s))map.set(s,{name:s,total:0,pool:[],unsold:0,sold:0});
-  const g=map.get(s);g.total++;
-  if(p.st==="pool")g.pool.push([id,p]);
-  else if(p.st==="unsold")g.unsold++;
-  else if(p.st==="sold")g.sold++;
- });
- return[...map.values()];
+const map=new Map();
+Object.entries(P).sort((a,b)=>a[1].ord-b[1].ord).forEach(([id,p])=>{
+const s=p.set||"General Pool";
+if(!map.has(s))map.set(s,{name:s,total:0,pool:[],unsold:0,sold:0});
+const g=map.get(s);g.total++;
+if(st(id)==="pool")g.pool.push([id,p]);
+else if(st(id)==="unsold")g.unsold++;
+else if(st(id)==="sold")g.sold++;
+});
+return[...map.values()];
 }
 function fillSets(){
- const box=$("#setbox");if(!box)return;
- if(!Object.keys(P).length){box.innerHTML="<span class=mu>Open 'Show live player pool' or start a set to load set stats</span>";return}
- const sets=getSetsSummary();
- if(!sets.length){box.innerHTML="<span class=mu>No sets loaded</span>";return}
- const activeSet=(S&&S.curSet)||sets[0].name;
- if(!SELSET||!sets.some(s=>s.name===SELSET))SELSET=activeSet;
- const cur=sets.find(s=>s.name===SELSET)||sets[0];
- box.innerHTML=`
+const box=$("#setbox");if(!box)return;
+if(!Object.keys(P).length){box.innerHTML="<span class=mu>Open 'Show live player pool' or start a set to load set stats</span>";return}
+const sets=getSetsSummary();
+if(!sets.length){box.innerHTML="<span class=mu>No sets loaded</span>";return}
+const activeSet=(S&&S.curSet)||sets[0].name;
+if(!SELSET||!sets.some(s=>s.name===SELSET))SELSET=activeSet;
+const cur=sets.find(s=>s.name===SELSET)||sets[0];
+box.innerHTML=`
   <div class=mu style="margin:4px 0">Current set: <b>${e(activeSet)}</b></div>
   <select id=setsel>${sets.map(s=>`<option value="${e(s.name)}" ${s.name===SELSET?"selected":""}>${e(s.name)} (${s.pool.length} left · ${s.unsold} unsold)</option>`).join("")}</select>
   <button id=setgo class=p style="font-size:15px" ${!cur.pool.length?"disabled":""}>Draw random player from selected set</button>`;
@@ -686,13 +639,13 @@ function fillSets(){
  if($("#setgo"))$("#setgo").onclick=()=>A.jumpSet();
 }
 function fillPick(){const box=$("#pk");if(!box)return;const q=($("#sq").value||"").toLowerCase();
- const m=Object.entries(P).filter(([,p])=>p.st!=="sold"&&p.n.toLowerCase().includes(q)).slice(0,8);
- box.innerHTML=m.map(([id,p])=>`<button data-p="${id}" style="${id===PK?"outline:2px solid var(--ac)":""}">${p.o?"✈":"🇮🇳"} ${e(p.n)} · ${cr(p.b)}${p.st==="unsold"?" · unsold":""}</button>`).join("")||"<span class=mu>No match</span>";
+ const m=Object.entries(P).filter(([id,p])=>st(id)!=="sold"&&p.n.toLowerCase().includes(q)).slice(0,8);
+ box.innerHTML=m.map(([id,p])=>`<button data-p="${id}" style="${id===PK?"outline:2px solid var(--ac)":""}">${p.o?"✈":"🇮🇳"} ${e(p.n)} · ${cr(p.b)}${st(id)==="unsold"?" · unsold":""}</button>`).join("")||"<span class=mu>No match</span>";
  box.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>{PK=b.dataset.p;fillPick()});
  $("#psel").textContent=PK&&P[PK]?"Selected: "+P[PK].n+" ("+(P[PK].set||"Pool")+")":"Nothing selected"}
-function fillRel(){const el=$("#rl");if(!el)return;const c=Object.entries(CL);
- el.innerHTML=c.length?c.map(([u,x])=>`<button data-r="${e(u)}">${e(x.tm)} ✕</button>`).join(" "):"<span class=mu>No teams claimed</span>";
- el.querySelectorAll("[data-r]").forEach(b=>b.onclick=()=>db.doc("claims/"+b.dataset.r).delete())}
+function fillRel(){const el=$("#rl");if(!el)return;const c=Object.keys(CL);
+ el.innerHTML=c.length?c.map(t=>`<button data-r="${t}">${t} ✕</button>`).join(" "):"<span class=mu>No teams claimed</span>";
+ el.querySelectorAll("[data-r]").forEach(b=>b.onclick=()=>D("claims/"+b.dataset.r).delete())}
 function fillTrade(){
  const box=$("#trbox");if(!box)return;
  const ids=TEAMS.map(t=>t[0]);
@@ -726,10 +679,10 @@ function fillTrade(){
 }
 function fillPoolView(){
  const box=$("#poolview");if(!box)return;
- if(poolLoading){box.innerHTML="<div class=mu style='margin-top:6px'>Pulling live player pool…</div>";return}
+ if(poolLoading){box.innerHTML="<div class=mu style='margin-top:6px'>Pulling live player pool...</div>";return}
  if(!poolOpen){box.innerHTML="";return}
  const groups=new Map();
- Object.entries(P).filter(([,p])=>p.st==="pool"||p.st==="unsold").forEach(([id,p])=>{
+ Object.entries(P).filter(([id,p])=>st(id)!=="sold").forEach(([id,p])=>{
   const s=p.set||"General Pool";
   if(!groups.has(s))groups.set(s,[]);
   groups.get(s).push([id,p]);
@@ -737,178 +690,16 @@ function fillPoolView(){
  if(!groups.size){box.innerHTML="<div class=mu style='margin-top:6px'>No remaining auctionable players</div>";return}
  box.innerHTML=[...groups.entries()].map(([sName,list])=>`
   <details style="margin-top:6px"><summary><b>${e(sName)}</b> (${list.length})</summary>
-  ${list.map(([id,p])=>`<div class=lg>${p.o?"✈":"🇮🇳"} ${e(p.n)} <span class=mu>· ${ROLE[p.r]} · ${cr(p.b)}${p.st==="unsold"?" · unsold":""}</span></div>`).join("")}
+  ${list.map(([id,p])=>`<div class=lg>${p.o?"✈":"🇮🇳"} ${e(p.n)} <span class=mu>· ${ROLE[p.r]} · ${cr(p.b)}${st(id)==="unsold"?" · unsold":""}</span></div>`).join("")}
   </details>`).join("");
 }
-async function reload(){
- if(S.ph==="live"||(S.counts&&S.counts.sold>0))return note("Only possible before the first sale, with the auction paused or idle");
- if(!rc){rc=1;setTimeout(()=>rc=0,4000);return note("Tap Reload pool again to confirm")}rc=0;
- const counts=await loadPlayers();
- await setS({...S,ph:"idle",pid:null,curPlayer:null,curSet:"Marquee Set",counts,bid:0,bt:null});
- note("Pool reloaded · Marquee Set first")
-}
-async function startNext(){
- await ensurePoolLoaded();
- let setName=S.curSet||"Marquee Set";
- let candidates=pool(setName);
- if(!candidates.length){
-  const allPool=pool();
-  if(!allPool.length)return setS({...S,ph:"done",pid:null,curPlayer:null,counts:calcCounts(P)});
-  const activeSets=[...new Set(allPool.map(([,p])=>p.set||"General Pool"))];
-  setName=pickRand(activeSets);
-  candidates=pool(setName);
- }
- const[id,p]=pickRand(candidates);
- await setS({...S,ph:"live",pid:id,curPlayer:{id,n:p.n,c:p.c,o:p.o,r:p.r,b:p.b,set:setName},curSet:setName,counts:calcCounts(P),bid:0,bt:null,end:Date.now()+CLK*1000,left:0,nb:0,until:0,rid:S.rid||0});
-}
-function queueProcessBids(){
- if(!eng||!S||S.ph!=="live")return;
- clearTimeout(bidTimer);
- bidTimer=setTimeout(processBids,120);
-}
-async function processBids(){
- if(busy||!eng||!S||S.ph!=="live")return;busy=true;
- try{for(;;){const p=activePlayer();if(!p)break;const n=need();
-  const c=Object.values(BD).filter(b=>b.pid===S.pid&&(b.rid||0)===(S.rid||0)&&b.amt===n&&!chk(b.tm,p,n)).sort((a,b)=>a.ts-b.ts)[0];
-  if(!c)break;await setS({...S,bid:n,bt:c.tm,end:Date.now()+CLK*1000,nb:S.nb+1})}}finally{busy=false}}
-async function settle(){
- if(busy)return;busy=true;
- try{const id=S.pid,p=activePlayer()||(P[id]);
-  if(!p)return;
-  if(S.bt){const t=TM[S.bt];
-   await updatePlayer(id,{st:"sold",tm:S.bt,pr:S.bid});
-   await db.doc("teams/"+S.bt).update({pu:t.pu-S.bid,sl:t.sl-1,os:t.os-(p.o?1:0),bought:[...(t.bought||[]),{id,n:p.n,pr:S.bid}]});
-   await lg({k:"sold",pid:id,tm:S.bt,pr:S.bid,t:p.n+" → "+S.bt+" for "+cr(S.bid)})}
-  else{await updatePlayer(id,{st:"unsold"});await lg({k:"unsold",t:p.n+" went unsold"})}
-  await setS({...S,ph:"break",curPlayer:null,counts:calcCounts(P),until:Date.now()+BRK})}finally{busy=false}}
-async function bid(){
- if(!S||S.ph!=="live"||!CL[me])return;const p=activePlayer(),amt=need();
- if(!p||chk(CL[me].tm,p,amt))return;await db.doc("bids/"+me).set({tm:CL[me].tm,pid:S.pid,amt,rid:S.rid||0,ts:Date.now()})}
-const A={
- async start(){if(S.ph==="paused")await setS({...S,ph:"live",end:Date.now()+S.left});else await startNext()},
- async pause(){if(S.ph==="live")await setS({...S,ph:"paused",left:Math.max(0,S.end-Date.now())})},
- async skip(){if(S.ph!=="live")return;const id=S.pid,p=activePlayer();await updatePlayer(id,{st:"pool"});await lg({k:"skip",t:(p?p.n:"Player")+" skipped (back in set pool)"});await startNext()},
- async jumpSet(){
-  if(S.ph==="live"&&S.bt)return note("Current player has a bid, let the hammer fall first");
-  await ensurePoolLoaded();
-  const s=getSetsSummary().find(x=>x.name===SELSET);
-  if(!s||!s.pool.length)return note("No remaining pool players in selected set");
-  const[id]=pickRand(s.pool);
-  await pickPlayer(id);
- },
- async togglePool(){
-  if(poolOpen){poolOpen=false;fillPoolView();return}
-  poolOpen=true;
-  await ensurePoolLoaded();
-  fillSets();fillPick();fillPoolView();
- },
- async trade(){
-  if(S.ph!=="paused")return note("Pause the auction first to execute trades");
-  const ev=evalTrade();if(ev.err)return note(ev.err);
-  const{tA,tB,sendA,sendB,val,dPurseA,dPurseB,newSlA,newSlB,newOsA,newOsB,newPuA,newPuB}=ev;
-  const remSq=(str,items)=>{const arr=(str||"").split(",").filter(Boolean);items.filter(x=>x.type==="ret").forEach(x=>{const idx=arr.indexOf(x.raw);if(idx>-1)arr.splice(idx,1)});return arr};
-  const sqA=[...remSq(tA.sq,sendA),...sendB.filter(x=>x.type==="ret").map(x=>x.raw)].join(",");
-  const sqB=[...remSq(tB.sq,sendB),...sendA.filter(x=>x.type==="ret").map(x=>x.raw)].join(",");
-  const bgtIdsA=new Set(sendA.filter(x=>x.type==="bgt").map(x=>x.id));
-  const bgtIdsB=new Set(sendB.filter(x=>x.type==="bgt").map(x=>x.id));
-  const movedBgtA=(tA.bought||[]).filter(b=>bgtIdsA.has(b.id));
-  const movedBgtB=(tB.bought||[]).filter(b=>bgtIdsB.has(b.id));
-  const boughtA=[...(tA.bought||[]).filter(b=>!bgtIdsA.has(b.id)),...movedBgtB];
-  const boughtB=[...(tB.bought||[]).filter(b=>!bgtIdsB.has(b.id)),...movedBgtA];
-  await db.doc("teams/"+TR.a).update({pu:newPuA,sl:newSlA,os:newOsA,sq:sqA,bought:boughtA});
-  await db.doc("teams/"+TR.b).update({pu:newPuB,sl:newSlB,os:newOsB,sq:sqB,bought:boughtB});
-  const patches={};
-  movedBgtA.forEach(b=>patches[b.id]={tm:TR.b});
-  movedBgtB.forEach(b=>patches[b.id]={tm:TR.a});
-  if(Object.keys(patches).length)await updatePlayersBatch(patches);
-  const parts=[];
-  if(sendA.length)parts.push(TR.a+" sends "+sendA.map(x=>x.n).join(", "));
-  if(sendB.length)parts.push(TR.b+" sends "+sendB.map(x=>x.n).join(", "));
-  if(val>0)parts.push((TR.dir==="ab"?TR.a+" → "+TR.b:TR.b+" → "+TR.a)+" "+cr(val));
-  await lg({
-   k:"trade",
-   a:TR.a,b:TR.b,
-   dPurseA,dPurseB,
-   dSlA:newSlA-tA.sl,dSlB:newSlB-tB.sl,
-   dOsA:newOsA-tA.os,dOsB:newOsB-tB.os,
-   retA:sendA.filter(x=>x.type==="ret").map(x=>x.raw),
-   retB:sendB.filter(x=>x.type==="ret").map(x=>x.raw),
-   bgtA:movedBgtA,
-   bgtB:movedBgtB,
-   t:"TRADE: "+parts.join(" · ")
-  });
-  TR.sa.clear();TR.sb.clear();TR.val="";fillTrade();note("Trade executed")},
- async undo(){if(S.ph==="live")return note("Pause the auction first");
-  const l=LG.filter(x=>(x.k==="sold"||x.k==="trade")&&!x.un)[0];if(!l)return note("Nothing to undo");
-  if(l.k==="trade"){
-   const tA=TM[l.a],tB=TM[l.b];
-   const remSq=(str,raws)=>{const arr=(str||"").split(",").filter(Boolean);(raws||[]).forEach(r=>{const idx=arr.indexOf(r);if(idx>-1)arr.splice(idx,1)});return arr};
-   const sqA=[...remSq(tA.sq,l.retB),...(l.retA||[])].join(",");
-   const sqB=[...remSq(tB.sq,l.retA),...(l.retB||[])].join(",");
-   const bgtIdsA=new Set((l.bgtA||[]).map(x=>x.id));
-   const bgtIdsB=new Set((l.bgtB||[]).map(x=>x.id));
-   const boughtA=[...(tA.bought||[]).filter(x=>!bgtIdsB.has(x.id)),...(l.bgtA||[])];
-   const boughtB=[...(tB.bought||[]).filter(x=>!bgtIdsA.has(x.id)),...(l.bgtB||[])];
-   await db.doc("teams/"+l.a).update({pu:tA.pu-l.dPurseA,sl:tA.sl-l.dSlA,os:tA.os-l.dOsA,sq:sqA,bought:boughtA});
-   await db.doc("teams/"+l.b).update({pu:tB.pu-l.dPurseB,sl:tB.sl-l.dSlB,os:tB.os-l.dOsB,sq:sqB,bought:boughtB});
-   const patches={};
-   (l.bgtA||[]).forEach(b=>patches[b.id]={tm:l.a});
-   (l.bgtB||[]).forEach(b=>patches[b.id]={tm:l.b});
-   if(Object.keys(patches).length)await updatePlayersBatch(patches);
-   await db.doc("log/"+l.id).update({un:true});
-   await lg({k:"undo",t:"UNDO "+l.t});
-   return note("Trade reverted")}
-  await ensurePoolLoaded();
-  const p=P[l.pid],t=TM[l.tm];
-  await db.doc("teams/"+l.tm).update({pu:t.pu+l.pr,sl:t.sl+1,os:t.os+(p&&p.o?1:0),bought:(t.bought||[]).filter(b=>b.id!==l.pid)});
-  await updatePlayer(l.pid,{st:"pool",tm:null,pr:0});
-  const nextCounts=S.counts?{...S.counts,pool:S.counts.pool+1,sold:Math.max(0,S.counts.sold-1)}:calcCounts(P);
-  await setS({...S,counts:nextCounts});
-  await db.doc("log/"+l.id).update({un:true});await lg({k:"undo",t:"UNDO: "+(p?p.n:l.pid)+" returned to pool, "+cr(l.pr)+" refunded to "+l.tm})},
- reload,restart,pick:()=>pickPlayer(PK),
- async sold(){if(S.ph!=="live")return note("No player on the block");if(!S.bt)return note("No bids yet, so nothing to sell. Use Skip or let the clock run out");await settle()},
- async add(){const n=$("#an").value.trim();if(!n)return;
-  await ensurePoolLoaded();
-  const nid="P"+String(Object.keys(P).length+1).padStart(3,"0");
-  const curSet=(S&&S.curSet)||"Marquee Set";
-  const next={...P,[nid]:{n,o:$("#ao").value==="O",r:$("#ar").value,b:+$("#ab").value,set:curSet,ord:Object.keys(P).length,st:"pool",tm:null,pr:0}};
-  await savePoolAll(next);
-  await setS({...S,counts:calcCounts(next)});
-  await lg({k:"add",t:"Added to pool: "+n});$("#an").value=""}};
-
-function render(){
- $("#msg").hidden=true;$("#app").hidden=false;$("#adm").hidden=!adm;$("#mst1").hidden=adm;$("#mst2").hidden=!adm;$("#mm").textContent=adm?(eng?"This device runs the clock":"Another master device runs the clock"):(PINH?"":"No host PIN yet: the first person to set one becomes the host. Host, do this before sharing the link.");$("#pu").textContent=PINH?"Unlock":"Set host PIN";
- if(adm){renderAdm();fillSets();fillPick();fillRel();fillTrade();fillPoolView()}
- const my=CL[me]&&CL[me].tm;let h="";
- const cnt=S&&S.counts;
- const summaryHtml=cnt?`<div class=pill-row><span class=pill>Pool left: ${cnt.pool}</span><span class=pill>Sold: ${cnt.sold}</span><span class=pill>Unsold: ${cnt.unsold}</span></div>`:"";
- if(!S){h="<div class=mu>Auction not set up yet.</div>"+(adm?"<button id=ib class=p>Initialise IPL 2027 auction</button>":"")}
- else{const p=activePlayer(),lt=LG[0];
-  if(S.ph==="idle")h="<div class=big>Waiting for the auctioneer…</div>"+(S.curSet?`<div class=mu>Starting set: <b>${e(S.curSet)}</b></div>`:"")+summaryHtml;
-  else if(S.ph==="done")h="<div class=big>Auction complete 🏆</div>"+summaryHtml;
-  else if(S.ph==="break")h=(lt&&lt.k==="sold"?`<div class=sold>SOLD! 🔨</div><div>${e(lt.t)}</div>`:`<div class=big>${lt?e(lt.t):""}</div>`)+summaryHtml;
-  else if(p){const lead=S.bt?TM[S.bt]:null,n=need(),er=my?chk(my,p,n):"Claim a team below";
-   h=`<div class=row><div>${p.set?`<div class=badge>📚 ${e(p.set)}</div>`:""}<div class=mu>${S.ph==="paused"?"⏸ PAUSED":"ON THE BLOCK"} · ${p.o?"✈ Overseas":"🇮🇳 Indian"} · ${ROLE[p.r]}</div><div class=big>${e(p.n)}</div><div class=mu>Base ${cr(p.b)}</div></div><div id=clk></div></div>
-   <div class=t style="--k:${lead?lead.c:"var(--ln)"}"><div class=mu>${lead?"Highest bid":"No bids yet"}</div><div class=big>${S.bt?cr(S.bid)+" · "+S.bt:"—"}</div></div>
-   <button id=bb class=p ${er||S.ph!=="live"?"disabled":""}>${my?(er&&S.ph==="live"?e(er):"BID "+cr(n)+" as "+my):"Pick your team below"}</button>`+summaryHtml}}
- const chips=`<div class=chips>${TEAMS.map(([id,,c])=>{const k=Object.values(CL).some(x=>x.tm===id);return`<button class=chip data-t="${id}" style="--k:${c}" ${k?"disabled":""}>${id}${k?" ✓":""}</button>`}).join("")}</div>`;
- if(!my)h+=adm?`<details data-d="claim" ${OPEN.has("claim")?"open":""} style="margin-top:10px"><summary class=mu>Play as a team (optional)</summary>${chips}</details>`:`<h3 style="margin-top:12px">Claim your team</h3>`+chips;
- else h+=`<div class=row style="margin-top:8px"><span class=mu>You are ${my}</span><button id=lv>Leave team</button></div>`;
- $("#top").innerHTML=h;
- if($("#lv"))$("#lv").onclick=()=>db.doc("claims/"+me).delete();
- if($("#ib"))$("#ib").onclick=init;if($("#bb"))$("#bb").onclick=bid;
- document.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>db.doc("claims/"+me).set({tm:b.dataset.t}));
- $("#teams").innerHTML=Object.entries(TM).map(([id,t])=>{const bt=(t.bought||[]);return`<details class=t style="--k:${t.c}" data-d="${id}" ${OPEN.has(id)?"open":""}><summary><b>${id}</b> · ${cr(t.pu)} · ${t.sl} slots · ${t.os} OS</summary><div class=mu><b>Bought:</b> ${bt.length?bt.map(b=>e(b.n)+" "+cr(b.pr)).join(", "):"—"}</div><div style="margin-top:6px"><b class=mu>RETAINED</b>${squad(id)}</div></details>`}).join("");
- document.querySelectorAll("[data-d]").forEach(d=>d.ontoggle=()=>d.open?OPEN.add(d.dataset.d):OPEN.delete(d.dataset.d));
- $("#log").innerHTML=LG.slice(0,25).map(l=>`<div class="lg ${l.un?"un":""}">${e(l.t)}</div>`).join("")||"<span class=mu>Nothing yet</span>";
- tick()}
 const RS=Object.fromEntries(TEAMS.map(t=>[t[0],t[6]])),GN={B:"Batters",A:"All-rounders",P:"Bowlers","?":"Role not set"};
 function squad(id){const g={B:[],A:[],P:[],"?":[]},raw=(TM[id]&&TM[id].sq!==undefined)?TM[id].sq:(RS[id]||"");
  raw.split(",").filter(Boolean).forEach(s=>{const[n,r,f=""]=s.split("|"),k=r==="K"?"B":(g[r]?r:"?");
   g[k].push((r==="K"?"🧤":"")+e(n)+(f.includes("O")?" ✈":"")+(f.includes("L")?" <b class=ic title='Left-hand batter'>🏏L</b>":"")+(f.includes("A")?" <b class=ic title='Left-arm bowler'>⚾L</b>":""))});
  return Object.entries(g).filter(([,a])=>a.length).map(([k,a])=>`<div><b>${GN[k]} (${a.length})</b></div><div class=sq>${a.map(x=>`<span>${x}</span>`).join("")}</div>`).join("")}
 function renderAdm(){const a=$("#adm");if(a.dataset.r)return;a.dataset.r=1;
- a.innerHTML=`<h3>Auctioneer controls</h3><div class=chips><button id=a1>▶ Start / Resume</button><button id=a2>⏸ Pause</button><button id=a9>🔨 Sold now</button><button id=a3>⏭ Skip player</button><button id=a4>↩ Undo last sale/trade</button><button id=a6>🔄 Reload pool</button><button id=a7>♻ Restart auction</button></div>
+ a.innerHTML=`<h3>Auctioneer controls</h3><div class=chips><button id=a1>▶ Start / Resume</button><button id=a2>⏸ Pause</button><button id=a9>🔨 Sold now</button><button id=a3>⏭ Skip player</button><button id=a4>↩ Undo last sale/trade</button><button id=a6>🔄 Reload pool</button><button id=a7>♻ Restart auction</button><button id=a10>🖥 Take over clock</button></div>
  <div style="margin-top:8px"><button id=apool>📋 Show live player pool</button><div id=poolview></div></div>
  <details open style="margin-top:8px"><summary>📚 Auction Sets (Marquee + 10–20/set)</summary><div id=setbox></div></details>
  <details style="margin-top:8px"><summary>🎯 Pick a player to auction now</summary><input id=sq placeholder="Search player name (loads pool if needed)"><div id=pk class=chips></div><div id=psel class=mu></div><button id=a8 class=p style="font-size:15px">Auction selected player now</button></details>
@@ -916,34 +707,56 @@ function renderAdm(){const a=$("#adm");if(a.dataset.r)return;a.dataset.r=1;
  <details style="margin-top:8px"><summary>Release a team claim</summary><div id=rl class=chips style="margin-top:6px"></div></details>
  <details style="margin-top:8px"><summary>Add player to pool</summary><input id=an placeholder="Player name"><select id=ao><option value=I>Indian</option><option value=O>Overseas</option></select><select id=ar><option value=B>Batter</option><option value=K>Keeper</option><option value=A>All-rounder</option><option value=P>Bowler</option></select><select id=ab><option value=30>Base ₹0.3 cr</option><option value=100>Base ₹1 cr</option><option value=200>Base ₹2 cr</option></select><button id=a5 class=p style="font-size:15px">Add to end of queue</button></details>
  <div class=mu style="margin-top:6px">Keep this tab open: it runs the clock and settles sales.</div>`;
- [["a1","start"],["a2","pause"],["a3","skip"],["a4","undo"],["a5","add"],["a6","reload"],["a7","restart"],["a8","pick"],["a9","sold"]].forEach(([i,f])=>$("#"+i).onclick=()=>S&&A[f]());
+ [["a1","start"],["a2","pause"],["a3","skip"],["a4","undo"],["a5","add"],["a6","reload"],["a7","restart"],["a8","pick"],["a9","sold"],["a10","takeover"]].forEach(([i,f])=>$("#"+i).onclick=()=>S&&A[f]());
  $("#apool").onclick=async()=>{await A.togglePool();$("#apool").textContent=poolOpen?"🙈 Hide live player pool":"📋 Show live player pool"};
  $("#sq").oninput=async()=>{await ensurePoolLoaded();fillPick()}}
 const sha=async s=>[...new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode("ipl27:"+s)))].map(x=>x.toString(16).padStart(2,"0")).join("");
 function note(m){const n=$("#nt");n.textContent=m;n.hidden=false;clearTimeout(note.t);note.t=setTimeout(()=>n.hidden=true,3500)}
-function setAdm(){adm=own||(!!PINH&&SV===PINH);lease();render()}
-async function lease(){const was=eng;eng=false;if(adm)try{eng=!!(await db.doc("cfg/engine").acquire({holder:me+TAB,ttlMs:12000})).acquired}catch{}if(eng!==was)render()}
-async function unlock(){const v=$("#pn").value.trim();
- if(!PINH){if(!/^\d{4,8}$/.test(v))return note("PIN must be 4 to 8 digits");const h=await sha(v);await db.doc("cfg/pin").set({h});SV=h;try{localStorage.setItem("m27",h)}catch{}$("#pn").value="";return note("Host PIN set. You are the host")}
- const h=await sha(v);if(h!==PINH)return note("Wrong PIN");SV=h;try{localStorage.setItem("m27",h)}catch{}$("#pn").value="";setAdm()}
-async function setPin(){const v=$("#np").value.trim();if(!/^\d{4,8}$/.test(v))return note("PIN must be 4 to 8 digits");const h=await sha(v);await db.doc("cfg/pin").set({h});SV=h;try{localStorage.setItem("m27",h)}catch{}$("#np").value="";note("PIN saved")}
-function tick(){
- if(!S)return;const now=Date.now();
- const c=$("#clk");if(c){const ms=S.ph==="paused"?S.left:S.end-now,s=Math.max(0,Math.ceil(ms/1000));c.textContent=s+"s";c.className=s<=10?"low":""}
- if(!eng||busy)return;
- if(S.ph==="live"&&now>=S.end)settle();else if(S.ph==="break"&&now>=S.until)startNext()}
+async function unlock(){const v=$("#pn").value.trim();if(!/^\d{4,8}$/.test(v))return note("PIN must be 4 to 8 digits");const h=await sha(v);
+ try{if(!META){await D("cfg/pin").set({h});await D("admins/"+me).set({h});await D("cfg/meta").set({pinSet:true});note("Host PIN set. You are the host")}else{await D("admins/"+me).set({h});note("Unlocked")}}
+ catch(x){note(META?"Wrong PIN":"Could not set PIN ("+x.code+")")}$("#pn").value=""}
+async function setPin(){const v=$("#np").value.trim();if(!/^\d{4,8}$/.test(v))return note("PIN must be 4 to 8 digits");const h=await sha(v);
+ try{await D("cfg/pin").set({h});await D("admins/"+me).set({h});note("PIN saved")}catch(x){note("Failed ("+x.code+")")}$("#np").value=""}
+function tick(){if(!S)return;const n=Date.now(),c=$("#clk");
+ if(c){const w=pre()?S.start-n:S.ph==="paused"?S.left:S.end-n,s=Math.max(0,Math.ceil(w/1000));c.textContent=(pre()?"next in ":"")+s+"s";c.className=s<=10&&!pre()?"low":""}
+ if(eng&&!busy&&live()&&!pre()&&n>=S.end)expire()}
+function render(){
+$("#msg").hidden=true;$("#app").hidden=false;$("#adm").hidden=!ADM;$("#mst1").hidden=ADM;$("#mst2").hidden=!ADM;
+$("#mm").textContent=ADM?(eng?"This device runs the clock":"Another master device runs the clock (tap Take over clock if it stopped)"):(META?"":"No host PIN yet: the first person to set one becomes the host. Host, do this before sharing the link.");
+$("#pu").textContent=META?"Unlock":"Set host PIN";
+if(ADM){renderAdm();fillSets();fillPick();fillRel();fillTrade();fillPoolView()}
+const my=mine(),cnt=S&&S.counts;let h="";
+const sum=cnt?`<div class=pill-row><span class=pill>Pool left: ${cnt.pool}</span><span class=pill>Sold: ${cnt.sold}</span><span class=pill>Unsold: ${cnt.unsold}</span></div>`:"";
+const lt=S&&(S.lg||[]).find(x=>x.k==="sold"||x.k==="unsold");
+if(!S)h="<div class=mu>Auction not set up yet.</div>"+(ADM?"<button id=ib class=p>Initialise IPL 2027 auction</button>":"");
+else if(S.ph==="idle")h="<div class=big>Waiting for the auctioneer…</div>"+(S.curSet?`<div class=mu>Starting set: <b>${e(S.curSet)}</b></div>`:"")+sum;
+else if(S.ph==="done")h="<div class=big>Auction complete 🏆</div>"+sum;
+else{const p=activePlayer();if(p){const lead=S.bt?TM[S.bt]:null,n=need(),er2=my?chk(my,p,n):"Claim a team below",pr=pre();
+ h=(pr&&lt?(lt.k==="sold"?`<div class=sold>SOLD! 🔨</div><div>${e(lt.t)}</div>`:`<div class=big>${e(lt.t)}</div>`):"")+
+ `<div class=row><div>${p.set?`<div class=badge>📚 ${e(p.set)}</div>`:""}<div class=mu>${S.ph==="paused"?"⏸ PAUSED":pr?"UP NEXT":"ON THE BLOCK"} · ${p.o?"✈ Overseas":"🇮🇳 Indian"} · ${ROLE[p.r]}</div><div class=big>${e(p.n)}</div><div class=mu>Base ${cr(p.b)}</div></div><div id=clk></div></div>
+ <div class=t style="--k:${lead?lead.c:"var(--ln)"}"><div class=mu>${lead?"Highest bid":"No bids yet"}</div><div class=big>${S.bt?cr(S.bid)+" · "+S.bt:"—"}</div></div>
+ <button id=bb class=p ${er2||S.ph!=="live"||pr?"disabled":""}>${my?(er2&&S.ph==="live"&&!pr?e(er2):"BID "+cr(n)+" as "+my):"Pick your team below"}</button>`+sum}}
+const chips=`<div class=chips>${TEAMS.map(([id,,c])=>`<button class=chip data-t="${id}" style="--k:${c}" ${CL[id]?"disabled":""}>${id}${CL[id]?" ✓":""}</button>`).join("")}</div>`;
+if(!my)h+=ADM?`<details data-d="claim" ${OPEN.has("claim")?"open":""} style="margin-top:10px"><summary class=mu>Play as a team (optional)</summary>${chips}</details>`:`<h3 style="margin-top:12px">Claim your team</h3>`+chips;
+else h+=`<div class=row style="margin-top:8px"><span class=mu>You are ${my}</span><button id=lv>Leave team</button></div>`;
+$("#top").innerHTML=h;
+if($("#lv"))$("#lv").onclick=()=>D("claims/"+my).delete();
+if($("#ib"))$("#ib").onclick=init;if($("#bb"))$("#bb").onclick=bid;
+document.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>D("claims/"+b.dataset.t).set({uid:me}).catch(()=>note("Team already taken")));
+$("#teams").innerHTML=Object.entries(TM).map(([id,t])=>{const bt=t.bought||[];return`<details class=t style="--k:${t.c}" data-d="${id}" ${OPEN.has(id)?"open":""}><summary><b>${id}</b> · ${cr(t.pu)} · ${t.sl} slots · ${t.os} OS</summary><div class=mu><b>Bought:</b> ${bt.length?bt.map(b=>e(b.n)+" "+cr(b.pr)).join(", "):"—"}</div><div style="margin-top:6px"><b class=mu>RETAINED</b>${squad(id)}</div></details>`}).join("");
+document.querySelectorAll("[data-d]").forEach(d=>d.ontoggle=()=>d.open?OPEN.add(d.dataset.d):OPEN.delete(d.dataset.d));
+$("#log").innerHTML=((S&&S.lg)||[]).slice(0,25).map(l=>`<div class="lg ${l.un?"un":""}">${e(l.t)}</div>`).join("")||"<span class=mu>Nothing yet</span>";
+tick()}
+(async()=>{const t=setTimeout(()=>{if($("#app").hidden)$("#msg").textContent="Could not connect. Check your internet connection and reload."},10000);
+ try{firebase.initializeApp(FIREBASE_CONFIG);fs=firebase.firestore();fs.settings({ignoreUndefinedProperties:true});try{await fs.enablePersistence({synchronizeTabs:true})}catch{}
+  await firebase.auth().signInAnonymously();me=firebase.auth().currentUser.uid}catch(x){clearTimeout(t);$("#msg").textContent="Setup needed: "+x.message;return}
+ clearTimeout(t);
+ D("cfg/state").onSnapshot(s=>{S=s.exists&&s.data().v===2?s.data():null;rq();queueBids()},er);
+ fs.collection("teams").onSnapshot(q=>{TM={};q.forEach(x=>TM[x.id]=x.data());rq()},er);
+ fs.collection("claims").onSnapshot(q=>{CL={};q.forEach(x=>{if(TEAMS.some(t=>t[0]===x.id))CL[x.id]=x.data()});rq()},er);
+ D("cfg/meta").onSnapshot(s=>{META=s.exists?s.data():null;rq()},er);
+ D("admins/"+me).onSnapshot(s=>{ADM=s.exists;lease();rq()},er);
+ $("#pu").onclick=unlock;$("#ps").onclick=setPin;$("#lk").onclick=()=>D("admins/"+me).delete();
+ setInterval(tick,500);setInterval(()=>lease(),20000)})();
 
-(async()=>{
- const t=setTimeout(()=>{if($("#app").hidden)$("#msg").textContent="Could not connect. Check your internet connection and reload."},10000);
- const cl=window.claude;let u;try{db=cl&&await cl.use("db");u=cl&&await cl.use("user")}catch(x){clearTimeout(t);$("#msg").textContent="Setup needed: "+x.message;return}
- if(!db||!u)return;me=await u.id();own=await u.isOwner();clearTimeout(t);try{SV=localStorage.getItem("m27")||""}catch{}
- const sub=(p,f,opts)=>db.collection(p).onSnapshot(q=>{f(q.docs);render();if(eng)queueProcessBids()},opts);
- db.doc("cfg/state").onSnapshot(s=>{S=s.exists?s.data():null;render();if(eng)queueProcessBids()});
- sub("teams",d=>{TM={};d.forEach(x=>TM[x.id]=x.data())});
- sub("claims",d=>{CL={};d.forEach(x=>CL[x.id]=x.data())});
- sub("bids",d=>{BD={};d.forEach(x=>BD[x.id]=x.data())});
- sub("log",d=>{LG=d.map(x=>({id:x.id,...x.data()})).sort((a,b)=>b.ts-a.ts)},{orderBy:"ts",dir:"desc",limit:30});
- db.doc("cfg/pin").onSnapshot(s=>{PINH=s.exists?s.data().h:"";setAdm()});
- $("#pu").onclick=unlock;$("#ps").onclick=setPin;setAdm();setInterval(tick,500);setInterval(lease,4000);
-})();
 </script></body></html>
